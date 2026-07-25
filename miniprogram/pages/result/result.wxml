@@ -1,0 +1,37 @@
+<view class="container">
+  <view class="result-card">
+    <view class="result-icon">{{result.accuracy >= 80 ? '🎉' : result.accuracy >= 60 ? '👍' : '💪'}}</view>
+    <view class="result-title">练习完成！</view>
+    <view class="accuracy-ring">
+      <text class="accuracy-num">{{result.accuracy}}%</text>
+      <text class="accuracy-label">正确率</text>
+    </view>
+    <view class="result-stats">
+      <view class="res-stat">
+        <text class="res-num">{{result.total}}</text>
+        <text class="res-label">总题数</text>
+      </view>
+      <view class="res-stat">
+        <text class="res-num correct">{{result.correct}}</text>
+        <text class="res-label">正确</text>
+      </view>
+      <view class="res-stat">
+        <text class="res-num wrong">{{result.wrong}}</text>
+        <text class="res-label">错误</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card tip-card" wx:if="{{result.wrong > 0}}">
+    <text class="tip-title">💡 学习建议</text>
+    <text class="tip-text">错了 {{result.wrong}} 道题，已自动收录到错题集，记得去复习哦！</text>
+    <button class="btn-primary" bindtap="goWrongBook" style="margin-top:20rpx">查看错题集</button>
+  </view>
+
+  <view class="card tip-card" wx:else>
+    <text class="tip-title">🎉 太棒了！</text>
+    <text class="tip-text">全部答对，继续保持！</text>
+  </view>
+
+  <button class="btn-secondary" bindtap="goHome" style="margin-top:30rpx">返回首页</button>
+</view>

@@ -1,0 +1,140 @@
+.upload-buttons {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.upload-btn-item {
+  flex: 1;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 40rpx 20rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+  border: 2rpx solid #E8E8E8;
+}
+
+.upload-btn-item.primary {
+  border-color: #4A90D9;
+  background: linear-gradient(135deg, #F0F7FF 0%, #E8F4FD 100%);
+}
+
+.upload-btn-icon {
+  font-size: 60rpx;
+  margin-bottom: 12rpx;
+}
+
+.upload-btn-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 6rpx;
+}
+
+.upload-btn-desc {
+  display: block;
+  font-size: 22rpx;
+  color: #999;
+}
+
+.scan-tip-card {
+  background: linear-gradient(135deg, #FFF7E6 0%, #FFF0D1 100%);
+  border: 2rpx solid #FFE58F;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+}
+
+.scan-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #D48806;
+  margin-bottom: 12rpx;
+}
+
+.scan-desc {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 6rpx;
+}
+
+.image-list-card {
+  padding-bottom: 20rpx;
+}
+
+.image-list-header {
+  margin-bottom: 20rpx;
+}
+
+.image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.image-item {
+  position: relative;
+  width: calc(33.33% - 11rpx);
+  height: 200rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.image-thumb {
+  width: 100%;
+  height: 100%;
+}
+
+.image-remove {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  width: 40rpx;
+  height: 40rpx;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  font-size: 24rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* AI状态栏样式 */
+.ai-status-bar {
+  background: #F6FFED;
+  border: 1rpx solid #B7EB8F;
+  border-radius: 8rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.ai-success {
+  font-size: 26rpx;
+  color: #52C41A;
+  display: block;
+}
+
+.ai-error {
+  font-size: 26rpx;
+  color: #FF4D4F;
+  display: block;
+}
+
+.ai-warn {
+  font-size: 26rpx;
+  color: #FAAD14;
+  display: block;
+}
+
+.preview-ans {
+  font-size: 24rpx;
+  color: #4A90D9;
+  margin-left: 12rpx;
+  font-weight: bold;
+}

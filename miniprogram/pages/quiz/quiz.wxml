@@ -1,0 +1,68 @@
+<view class="container quiz-container">
+  <!-- 进度头部 -->
+  <view class="quiz-header">
+    <view class="progress-ring">
+      <text class="progress-text">{{currentIndex + 1}}/{{questions.length}}</text>
+    </view>
+    <view class="quiz-info">
+      <text class="quiz-title">{{quizTitle}}</text>
+      <text class="correct-count">✅ {{correctCount}} | ❌ {{wrongCount}}</text>
+    </view>
+  </view>
+
+  <!-- 题目区域 -->
+  <view class="question-card" wx:if="{{currentQuestion}}">
+    <view class="question-number">第 {{currentIndex + 1}} 题</view>
+    <view class="question-text">{{currentQuestion.question}}</view>
+    
+    <view class="options-list">
+      <view 
+        class="option-item {{selectedOption === item.key ? 'selected' : ''}} {{showResult && currentQuestion.answer && item.key === currentQuestion.answer ? 'correct' : ''}} {{showResult && currentQuestion.answer && selectedOption === item.key && selectedOption !== currentQuestion.answer ? 'wrong' : ''}}"
+        wx:for="{{currentQuestion.options}}" 
+        wx:key="key"
+        bindtap="selectOption"
+        data-key="{{item.key}}"
+      >
+        <view class="option-key">{{item.key}}</view>
+        <view class="option-text">{{item.text}}</view>
+        <view class="option-result" wx:if="{{showResult}}">
+          <text wx:if="{{currentQuestion.answer && item.key === currentQuestion.answer}}">✓</text>
+          <text wx:if="{{currentQuestion.answer && selectedOption === item.key && item.key !== currentQuestion.answer}}">✗</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 答案解析 -->
+    <view class="explanation-card" wx:if="{{showResult}}">
+      <view class="explanation-title">
+        <text wx:if="{{!currentQuestion.answer}}">📝 本题暂未设置答案</text>
+        <text wx:elif="{{selectedOption === currentQuestion.answer}}">🎉 回答正确！</text>
+        <text wx:else>😅 回答错误</text>
+      </view>
+      <view class="explanation-content" wx:if="{{currentQuestion.answer}}">
+        <text class="answer-label">正确答案：</text>
+        <text class="answer-value">{{currentQuestion.answer}}</text>
+      </view>
+      <view class="explanation-content" wx:if="{{currentQuestion.explanation}}">
+        <text class="answer-label">解析：</text>
+        <text class="answer-text">{{currentQuestion.explanation}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部导航 -->
+  <view class="quiz-footer">
+    <view class="nav-btn {{currentIndex === 0 ? 'disabled' : ''}}" bindtap="prevQuestion">
+      ← 上一题
+    </view>
+    <view class="nav-btn primary" bindtap="nextQuestion" wx:if="{{showResult && currentIndex < questions.length - 1}}">
+      下一题 →
+    </view>
+    <view class="nav-btn success" bindtap="finishQuiz" wx:if="{{showResult && currentIndex === questions.length - 1}}">
+      完成练习
+    </view>
+    <view class="nav-btn" wx:if="{{!showResult}}" style="opacity:0.5">
+      请选择答案
+    </view>
+  </view>
+</view>

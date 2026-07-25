@@ -1,0 +1,113 @@
+<view class="container">
+  <!-- 顶部横幅 -->
+  <view class="header-banner">
+    <view class="banner-content">
+      <text class="banner-title">识图刷题</text>
+      <text class="banner-subtitle">PPT一键转练习题，智能刷题提分</text>
+    </view>
+    <view class="banner-stats">
+      <view class="stat-item">
+        <text class="stat-num">{{stats.totalQuiz}}</text>
+        <text class="stat-label">题库</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{stats.totalQuestion}}</text>
+        <text class="stat-label">题目</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{stats.wrongCount}}</text>
+        <text class="stat-label">错题</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 功能入口 -->
+  <view class="card feature-card">
+    <view class="feature-title">功能入口</view>
+    <view class="feature-grid">
+      <view class="feature-item" bindtap="goToImport">
+        <view class="feature-icon import-icon">
+          <text class="iconfont">📄</text>
+        </view>
+        <text class="feature-name">导入文档</text>
+        <text class="feature-desc">PPT/Word/Excel</text>
+      </view>
+      <view class="feature-item" bindtap="goToQuizList">
+        <view class="feature-icon quiz-icon">
+          <text class="iconfont">📝</text>
+        </view>
+        <text class="feature-name">我的题库</text>
+        <text class="feature-desc">开始练习</text>
+      </view>
+      <view class="feature-item" bindtap="goToWrongBook">
+        <view class="feature-icon wrong-icon">
+          <text class="iconfont">❌</text>
+        </view>
+        <text class="feature-name">错题集</text>
+        <text class="feature-desc">智能整理</text>
+      </view>
+      <view class="feature-item" bindtap="goToProfile">
+        <view class="feature-icon profile-icon">
+          <text class="iconfont">👤</text>
+        </view>
+        <text class="feature-name">我的</text>
+        <text class="feature-desc">额度管理</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 最近题库 -->
+  <view class="card recent-card" wx:if="{{recentQuizzes.length > 0}}">
+    <view class="recent-header">
+      <text class="title">最近题库</text>
+      <text class="more" bindtap="goToQuizList">全部 ></text>
+    </view>
+    <view class="quiz-list">
+      <view class="quiz-item" wx:for="{{recentQuizzes}}" wx:key="_id" bindtap="startQuiz" data-id="{{item._id}}">
+        <view class="quiz-info">
+          <text class="quiz-name">{{item.title}}</text>
+          <text class="quiz-meta">{{item.questionCount}}题 · {{item.createTime}}</text>
+        </view>
+        <view class="quiz-action">
+          <text class="btn-small">练习</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 额度提示 -->
+  <view class="card quota-card" bindtap="goToProfile">
+    <view class="flex-between">
+      <view class="quota-info">
+        <text class="quota-label">剩余识别次数</text>
+        <text class="quota-value">{{quota}} 次</text>
+      </view>
+      <view class="quota-btn" bindtap="getQuota" catchtap>
+        <text>+ 获取额度</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 使用说明 -->
+  <view class="card help-card">
+    <view class="title">使用说明</view>
+    <view class="help-list">
+      <view class="help-item">
+        <text class="help-num">1</text>
+        <text class="help-text">点击"导入文档"上传PPT或其他格式文件</text>
+      </view>
+      <view class="help-item">
+        <text class="help-num">2</text>
+        <text class="help-text">系统自动识别内容，一键生成选择题</text>
+      </view>
+      <view class="help-item">
+        <text class="help-num">3</text>
+        <text class="help-text">进入题库开始练习，点击选项即知对错</text>
+      </view>
+      <view class="help-item">
+        <text class="help-num">4</text>
+        <text class="help-text">错题自动收录到错题集，随时复习</text>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,42 @@
+<view class="container">
+  <view class="search-bar">
+    <input type="text" placeholder="搜索题库..." value="{{keyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="doSearch"/>
+    <text class="search-btn" bindtap="doSearch">搜索</text>
+  </view>
+
+  <view class="filter-bar">
+    <view class="filter-item {{sortBy === 'time' ? 'active' : ''}}" bindtap="setSort" data-type="time">
+      最新
+    </view>
+    <view class="filter-item {{sortBy === 'count' ? 'active' : ''}}" bindtap="setSort" data-type="count">
+      题目数
+    </view>
+  </view>
+
+  <view class="quiz-list" wx:if="{{quizzes.length > 0}}">
+    <view class="quiz-card" wx:for="{{quizzes}}" wx:key="_id">
+      <view class="quiz-header">
+        <text class="quiz-title">{{item.title}}</text>
+        <view class="quiz-tag">{{item.questionCount}}题</view>
+      </view>
+      <view class="quiz-meta">
+        <text>创建时间：{{item.createTimeStr}}</text>
+        <text>来源：{{item.fileName || '手动创建'}}</text>
+      </view>
+      <view class="quiz-actions">
+        <view class="action-btn practice-btn" bindtap="startPractice" data-id="{{item._id}}">
+          <text>📝 开始练习</text>
+        </view>
+        <view class="action-btn delete-btn" bindtap="deleteQuiz" data-id="{{item._id}}">
+          <text>🗑️ 删除</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-tip" wx:else>
+    <text>暂无题库</text>
+    <text>点击"导入文档"开始创建你的第一个题库吧</text>
+    <button class="btn-primary" bindtap="goImport" style="margin-top:30rpx">导入文档</button>
+  </view>
+</view>
