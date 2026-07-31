@@ -2,6 +2,7 @@ App({
   onLaunch: function () {
     this.globalData = {
       env: "llll-d9gppqiqb230a9fa8",
+      parseServiceUrl: "",
     };
     if (!wx.cloud) {
       console.error("请使用 2.2.3 或以上的基础库以使用云能力");
@@ -16,6 +17,7 @@ App({
 
   globalData: {
     env: "llll-d9gppqiqb230a9fa8",
+    parseServiceUrl: "",
     userInfo: null,
     quota: 0,
   },
@@ -27,6 +29,7 @@ App({
       success: res => {
         if (res.result && res.result.code === 0 && res.result.openid) {
           wx.setStorageSync('openid', res.result.openid);
+          if (res.result.parseAuth) wx.setStorageSync('parseAuth', res.result.parseAuth);
           this.getUserQuota(res.result.openid);
         }
       },

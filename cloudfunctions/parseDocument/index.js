@@ -1,9 +1,9 @@
 const cloud = require('wx-server-sdk');
-cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
+cloud.init({ env: process.env.CLOUDBASE_ENV_ID || cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 
-const TENCENT_SECRET_ID = process.env.TENCENT_SECRET_ID || '';
-const TENCENT_SECRET_KEY = process.env.TENCENT_SECRET_KEY || '';
+const TENCENT_SECRET_ID = process.env.TENCENT_SECRET_ID || process.env.TENCENTCLOUD_SECRETID || '';
+const TENCENT_SECRET_KEY = process.env.TENCENT_SECRET_KEY || process.env.TENCENTCLOUD_SECRETKEY || '';
 const GLM_API_KEY = process.env.ZHIPU_API_KEY || '';
 const GLM_MODEL = process.env.GLM_MODEL || 'glm-4-flash';
 const GLM_MAX_TOKENS = Math.max(256, Number.parseInt(process.env.GLM_MAX_TOKENS || '1024', 10));

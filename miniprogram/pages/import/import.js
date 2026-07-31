@@ -55,6 +55,63 @@ Page({
     }
   },
 
+  async refreshParseAuth() {
+    const res = await new Promise((resolve, reject) => {
+      wx.cloud.callFunction({
+        name: 'login',
+        success: resolve,
+        fail: reject,
+      });
+    });
+    if (res.result && res.result.openid) wx.setStorageSync('openid', res.result.openid);
+    if (res.result && res.result.parseAuth) wx.setStorageSync('parseAuth', res.result.parseAuth);
+    return res.result;
+  },
+
+  async callParseService(data, retry = true) {
+    const serviceUrl = app.globalData.parseServiceUrl || '';
+    if (!serviceUrl) return wx.cloud.callFunction({ name: 'parseDocument', data });
+
+    let auth = wx.getStorageSync('parseAuth') || {};
+    if ((!auth.token || !auth.timestamp) && retry) {
+      await this.refreshParseAuth();
+      auth = wx.getStorageSync('parseAuth') || {};
+    }
+    if (!auth.token || !auth.timestamp) return wx.cloud.callFunction({ name: 'parseDocument', data });
+
+    const requestData = { ...data, openid: wx.getStorageSync('openid') || '' };
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: serviceUrl,
+        method: 'POST',
+        data: requestData,
+        header: {
+          'content-type': 'application/json',
+          'X-Parse-Token': auth.token,
+          'X-Parse-Timestamp': String(auth.timestamp),
+        },
+        success: async response => {
+          if (response.statusCode === 401 && retry) {
+            try {
+              await this.refreshParseAuth();
+              resolve(await this.callParseService(data, false));
+            } catch (err) {
+              reject(err);
+            }
+            return;
+          }
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            resolve({ result: response.data });
+            return;
+          }
+          const message = response.data && response.data.message;
+          reject(new Error(message || `解析服务请求失败（${response.statusCode}）`));
+        },
+        fail: reject,
+      });
+    });
+  },
+
   chooseFile() {
     this.setData({ errorMsg: '', isScanFile: false });
     const quota = wx.getStorageSync('userQuota') || 0;
@@ -171,13 +228,10 @@ Page({
       this._uploadedFileIDs = [uploadRes.fileID];
       this.setData({ progress: 30, progressText: isPdf ? '扫描版PDF转图片识别中...' : '解析中...' });
 
-      const parseRes = await wx.cloud.callFunction({
-        name: 'parseDocument',
-        data: {
+      const parseRes = await this.callParseService({
           ...this.getParseOptions(),
           fileID: uploadRes.fileID,
           fileName: this.data.fileName,
-        }
       });
 
       if (parseRes.result && parseRes.result.code === 0) {
@@ -238,10 +292,7 @@ Page({
 
     try {
       // 继续处理接口同时返回进度，避免每轮先查询再处理造成双倍云函数调用。
-      const continueRes = await wx.cloud.callFunction({
-        name: 'parseDocument',
-        data: { mode: 'scan_pdf_continue', jobId }
-      });
+      const continueRes = await this.callParseService({ mode: 'scan_pdf_continue', jobId });
 
       if (continueRes.result.code !== 0) {
         this.stopPolling();
@@ -355,10 +406,7 @@ Page({
       this._uploadedFileIDs = fileIDs;
 
       this.setData({ progress: 50, progressText: '正在识别文字...' });
-      const parseRes = await wx.cloud.callFunction({
-        name: 'parseDocument',
-        data: { ...this.getParseOptions(), imageFileIDs: fileIDs, fileName: '截图_' + images.length + '张', mode: 'ocr_images' }
-      });
+      const parseRes = await this.callParseService({ ...this.getParseOptions(), imageFileIDs: fileIDs, fileName: '截图_' + images.length + '张', mode: 'ocr_images' });
 
       this.setData({ progress: 80, progressText: 'AI生成题目中...' });
       if (parseRes.result && parseRes.result.code === 0) {
