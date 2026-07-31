@@ -6,13 +6,19 @@
     </view>
     <view class="quiz-info">
       <text class="quiz-title">{{quizTitle}}</text>
-      <text class="correct-count">✅ {{correctCount}} | ❌ {{wrongCount}}</text>
+      <text class="correct-count">✅ {{correctCount}} | ❌ {{wrongCount}} · 已答 {{answeredCount}} 题</text>
     </view>
+    <view class="question-map-trigger" bindtap="toggleQuestionMap">题号</view>
   </view>
 
   <!-- 题目区域 -->
   <view class="question-card" wx:if="{{currentQuestion}}">
-    <view class="question-number">第 {{currentIndex + 1}} 题</view>
+    <view class="question-toolbar">
+      <text class="question-number">第 {{currentIndex + 1}} 题</text>
+      <view class="favorite-btn {{currentQuestion.favorite ? 'active' : ''}}" bindtap="toggleFavorite">
+        {{currentQuestion.favorite ? '★ 已收藏' : '☆ 收藏'}}
+      </view>
+    </view>
     <view class="question-text">
       <block wx:for="{{currentQuestion.questionParts}}" wx:key="index">
         <text wx:if="{{item.type === 'text'}}">{{item.text}}</text>
@@ -53,6 +59,31 @@
         <text class="answer-text">{{currentQuestion.explanation}}</text>
       </view>
       <text class="auto-next-tip">{{nextHint}}</text>
+    </view>
+  </view>
+
+  <!-- 题号跳转面板 -->
+  <view class="question-map-mask" wx:if="{{showQuestionMap}}" bindtap="toggleQuestionMap">
+    <view class="question-map-panel" catchtap="stopMapTap">
+      <view class="question-map-header">
+        <text class="question-map-title">选择题目</text>
+        <text class="question-map-count">已答 {{answeredCount}} / {{questions.length}}</text>
+      </view>
+      <view class="question-map-grid">
+        <view
+          wx:for="{{questions}}"
+          wx:key="index"
+          class="question-map-item {{item.status}} {{index === currentIndex ? 'current' : ''}}"
+          bindtap="jumpToQuestion"
+          data-index="{{index}}"
+        >{{index + 1}}</view>
+      </view>
+      <view class="question-map-legend">
+        <view class="legend-item"><text class="legend-dot current-dot"></text><text>当前</text></view>
+        <view class="legend-item"><text class="legend-dot answered-dot"></text><text>已答</text></view>
+        <view class="legend-item"><text class="legend-dot wrong-dot"></text><text>答错</text></view>
+      </view>
+      <view class="map-finish-btn" bindtap="finishFromMap">提交练习</view>
     </view>
   </view>
 

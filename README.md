@@ -6,9 +6,12 @@
 
 ## 功能特性
 
-- 📄 **导入文档**：当前支持 PPTX/PPT、DOCX、PDF、TXT 和图片格式；DOC/XLS/XLSX 需要后续补充解析器
+- 📄 **导入文档**：支持 PPTX、DOCX、XLSX、PDF、TXT 和图片格式；旧版 PPT/XLS 需要先另存为新版格式
 - 📝 **一键生成题库**：自动识别文档内容，智能生成选择题
+- 🔎 **质量校对**：识别结果支持展开全部题目，手动校对题干、选项和答案，并保留原始题干
 - ✅ **即时作答**：点击选项即知对错，无需提交按钮
+- 🧭 **题号跳转**：支持题号面板任意跳题、查看已答/答错状态、提前提交
+- ⭐ **收藏题目**：练习中可收藏重点题目
 - ❌ **自动错题集**：答错的题目自动收录，智能整理
 - ⚡ **额度管理**：每日登录赠送额度，观看广告获取更多
 
@@ -67,9 +70,13 @@
      "quizId": "string",
      "openid": "string",
      "question": "string",
+     "rawQuestion": "string",
      "options": [{"key": "A", "text": "string"}],
      "answer": "string",
      "explanation": "string",
+     "favorite": false,
+     "questionIndex": 0,
+     "sourceOrder": 1,
      "createTime": "date"
    }
    ```

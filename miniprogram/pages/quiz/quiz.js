@@ -15,6 +15,8 @@ Page({
     answers: {},
     nextHint: '',
     practiceMode: 'normal',
+    showQuestionMap: false,
+    answeredCount: 0,
   },
 
   onLoad(options) {
@@ -50,11 +52,11 @@ Page({
       }
 
       const data = result.data || {};
-      const questions = this.sortQuestionsBySourceOrder((Array.isArray(data.questions) ? data.questions : []).map(q => ({
+      const questions = this.decorateQuestions(this.sortQuestionsBySourceOrder((Array.isArray(data.questions) ? data.questions : []).map(q => ({
         ...q,
         options: this.parseOptions(q.options),
         questionParts: this.buildQuestionParts(q.question),
-      })));
+      }))));
       if (questions.length === 0) throw new Error('题库暂无题目');
 
       const preparedQuestions = practiceMode === 'random'
@@ -65,6 +67,8 @@ Page({
         quizTitle: data.title,
         questions: preparedQuestions,
         currentQuestion: preparedQuestions[0],
+        answeredCount: 0,
+        showQuestionMap: false,
       });
       util.hideLoading();
     } catch (err) {
@@ -95,6 +99,19 @@ Page({
       })
       .sort((a, b) => a._sourceOrder - b._sourceOrder || a._sourceIndex - b._sourceIndex)
       .map(({ _sourceOrder, _sourceIndex, ...question }) => question);
+  },
+
+  decorateQuestions(questions) {
+    return (Array.isArray(questions) ? questions : []).map((question, index) => ({
+      ...question,
+      displayNumber: index + 1,
+      status: question.status || 'unanswered',
+      favorite: Boolean(question.favorite),
+    }));
+  },
+
+  getQuestionKey(question, index = 0) {
+    return String(question && (question._id || question.questionId || question.sourceOrder || `question-${index}`));
   },
 
   buildQuestionParts(question) {
@@ -132,12 +149,13 @@ Page({
   loadWrongPractice() {
     const stored = wx.getStorageSync('wrongPracticeQuestions') || [];
     wx.removeStorageSync('wrongPracticeQuestions');
-    const questions = (Array.isArray(stored) ? stored : []).map(q => ({
+    const questions = this.decorateQuestions((Array.isArray(stored) ? stored : []).map(q => ({
       ...q,
+      _wrongBookId: q._wrongBookId || q._id,
       _id: q.questionId || q._id,
       options: this.parseOptions(q.options),
       questionParts: this.buildQuestionParts(q.question),
-    })).filter(q => q.question && q.options.length > 0);
+    })).filter(q => q.question && q.options.length > 0));
     if (questions.length === 0) {
       wx.showToast({ title: '暂无可复习的错题', icon: 'none' });
       setTimeout(() => wx.navigateBack(), 600);
@@ -148,7 +166,71 @@ Page({
       quizTitle: '错题复习',
       questions: orderedQuestions,
       currentQuestion: orderedQuestions[0],
+      answeredCount: 0,
+      showQuestionMap: false,
     });
+  },
+
+  toggleQuestionMap() {
+    this.clearAutoNextTimer();
+    this.setData({ showQuestionMap: !this.data.showQuestionMap });
+  },
+
+  stopMapTap() {},
+
+  jumpToQuestion(e) {
+    const newIndex = Number(e.currentTarget.dataset.index);
+    if (!Number.isInteger(newIndex) || newIndex < 0 || newIndex >= this.data.questions.length) return;
+    this.setCurrentQuestion(newIndex);
+  },
+
+  setCurrentQuestion(newIndex) {
+    const q = this.data.questions[newIndex];
+    if (!q) return;
+    const key = this.getQuestionKey(q, newIndex);
+    const hasAnswer = Object.prototype.hasOwnProperty.call(this.data.answers, key);
+    this.setData({
+      currentIndex: newIndex,
+      currentQuestion: q,
+      selectedOption: hasAnswer ? this.data.answers[key] : '',
+      showResult: hasAnswer,
+      nextHint: '',
+      showQuestionMap: false,
+    });
+  },
+
+  finishFromMap() {
+    const unanswered = this.data.questions.length - this.data.answeredCount;
+    if (unanswered > 0) {
+      wx.showModal({
+        title: '还有题目未作答',
+        content: `还有 ${unanswered} 题未作答，确定现在提交吗？`,
+        confirmText: '提交',
+        success: res => { if (res.confirm) this.finishQuiz(); },
+      });
+      return;
+    }
+    this.finishQuiz();
+  },
+
+  toggleFavorite() {
+    const question = this.data.currentQuestion;
+    if (!question) return;
+    const favorite = !question.favorite;
+    const collection = question._wrongBookId ? 'wrongBooks' : 'questions';
+    const documentId = question._wrongBookId || question._id;
+    const updateLocal = () => {
+      const questions = this.data.questions.map((item, index) => index === this.data.currentIndex ? { ...item, favorite } : item);
+      this.setData({ questions, currentQuestion: questions[this.data.currentIndex] });
+      wx.showToast({ title: favorite ? '已收藏' : '已取消收藏', icon: 'none' });
+    };
+    if (!documentId) {
+      updateLocal();
+      return;
+    }
+    wx.cloud.database().collection(collection).doc(documentId).update({ data: { favorite } })
+      .then(updateLocal)
+      .catch(() => wx.showToast({ title: '收藏失败，请重试', icon: 'none' }));
   },
 
   selectOption(e) {
@@ -159,9 +241,21 @@ Page({
     const hasAnswer = currentQuestion.answer && currentQuestion.answer.trim().length > 0;
     const isCorrect = hasAnswer && key === currentQuestion.answer;
     
+    const questionKey = this.getQuestionKey(currentQuestion, this.data.currentIndex);
+    const status = !hasAnswer ? 'answered' : (isCorrect ? 'correct' : 'wrong');
+    const questions = this.data.questions.map((question, index) => index === this.data.currentIndex
+      ? { ...question, status }
+      : question);
+    const answers = { ...this.data.answers, [questionKey]: key };
+    const answeredCount = Object.keys(answers).length;
+
     this.setData({
       selectedOption: key,
       showResult: true,
+      questions,
+      currentQuestion: questions[this.data.currentIndex],
+      answers,
+      answeredCount,
       nextHint: this.data.currentIndex === this.data.questions.length - 1
         ? '即将查看练习结果…'
         : '即将进入下一题…',
@@ -179,8 +273,6 @@ Page({
       this.saveWrongQuestion(currentQuestion);
     }
 
-    const answers = { ...this.data.answers, [currentQuestion._id]: key };
-    this.setData({ answers });
     this.scheduleAutoNext();
   },
 
@@ -242,40 +334,26 @@ Page({
   prevQuestion() {
     this.clearAutoNextTimer();
     if (this.data.currentIndex === 0) return;
-    const newIndex = this.data.currentIndex - 1;
-    const q = this.data.questions[newIndex];
-    this.setData({
-      currentIndex: newIndex,
-      currentQuestion: q,
-      selectedOption: this.data.answers[q._id] || '',
-      showResult: !!this.data.answers[q._id],
-      nextHint: '',
-    });
+    this.setCurrentQuestion(this.data.currentIndex - 1);
   },
 
   nextQuestion() {
     this.clearAutoNextTimer();
     if (this.data.currentIndex >= this.data.questions.length - 1) return;
-    const newIndex = this.data.currentIndex + 1;
-    const q = this.data.questions[newIndex];
-    this.setData({
-      currentIndex: newIndex,
-      currentQuestion: q,
-      selectedOption: this.data.answers[q._id] || '',
-      showResult: !!this.data.answers[q._id],
-      nextHint: '',
-    });
+    this.setCurrentQuestion(this.data.currentIndex + 1);
   },
 
   finishQuiz() {
     this.clearAutoNextTimer();
-    const { quizId, questions, correctCount, wrongCount } = this.data;
+    const { quizId, questions, correctCount, wrongCount, answeredCount } = this.data;
     const result = {
       quizId,
       total: questions.length,
+      answered: answeredCount,
+      unanswered: Math.max(0, questions.length - answeredCount),
       correct: correctCount,
       wrong: wrongCount,
-      accuracy: questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0,
+      accuracy: answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0,
     };
     wx.setStorageSync('lastQuizResult', result);
     wx.navigateTo({ url: '/pages/result/result' });

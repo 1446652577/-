@@ -18,6 +18,8 @@ Page({
     questionCounts: ['5题', '10题', '15题', '20题', '30题'],
     questionCountIndex: 1,
     previewQuestions: [],
+    allPreviewQuestions: [],
+    previewExpanded: false,
     parsedData: null,
     errorMsg: '',
     isPptFile: false,
@@ -157,6 +159,91 @@ Page({
 
   onQuestionTypeChange(e) { this.setData({ questionTypeIndex: Number(e.detail.value) }); },
 
+  togglePreview() {
+    const expanded = !this.data.previewExpanded;
+    this.setData({
+      previewExpanded: expanded,
+      previewQuestions: expanded
+        ? this.data.allPreviewQuestions
+        : this.data.allPreviewQuestions.slice(0, 3),
+    });
+  },
+
+  refreshPreviewQuestions(questions) {
+    const previewQuestions = this.data.previewExpanded ? questions : questions.slice(0, 3);
+    const qualitySummary = this.normalizeQuestions(questions).summary;
+    this.setData({
+      allPreviewQuestions: questions,
+      previewQuestions,
+      'parsedData.questions': questions,
+      'parsedData.questionCount': questions.length,
+      'parsedData.qualitySummary': qualitySummary,
+    });
+  },
+
+  editQuestion(e) {
+    const index = Number(e.currentTarget.dataset.index);
+    const question = this.data.parsedData && this.data.parsedData.questions[index];
+    if (!question) return;
+    wx.showModal({
+      title: `校对第 ${index + 1} 题题干`,
+      content: question.question,
+      editable: true,
+      placeholderText: '请输入完整题干，横线请保留为 ____',
+      confirmText: '保存',
+      success: res => {
+        if (!res.confirm || !String(res.content || '').trim()) return;
+        const questions = this.data.parsedData.questions.map((item, itemIndex) => itemIndex === index
+          ? { ...item, question: String(res.content).trim() }
+          : item);
+        this.refreshPreviewQuestions(this.normalizeQuestions(questions).questions);
+      },
+    });
+  },
+
+  editAnswer(e) {
+    const index = Number(e.currentTarget.dataset.index);
+    const question = this.data.parsedData && this.data.parsedData.questions[index];
+    if (!question || !question.options || question.options.length === 0) return;
+    wx.showActionSheet({
+      itemList: question.options.map(option => `${option.key}. ${option.text}`),
+      success: res => {
+        const option = question.options[res.tapIndex];
+        if (!option) return;
+        const questions = this.data.parsedData.questions.map((item, itemIndex) => itemIndex === index
+          ? { ...item, answer: option.key }
+          : item);
+        this.refreshPreviewQuestions(this.normalizeQuestions(questions).questions);
+      },
+    });
+  },
+
+  editOption(e) {
+    const questionIndex = Number(e.currentTarget.dataset.index);
+    const optionIndex = Number(e.currentTarget.dataset.optionIndex);
+    const question = this.data.parsedData && this.data.parsedData.questions[questionIndex];
+    const option = question && question.options && question.options[optionIndex];
+    if (!option) return;
+    wx.showModal({
+      title: `修改选项 ${option.key}`,
+      content: option.text,
+      editable: true,
+      placeholderText: '请输入选项内容',
+      confirmText: '保存',
+      success: res => {
+        if (!res.confirm || !String(res.content || '').trim()) return;
+        const questions = this.data.parsedData.questions.map((item, itemIndex) => {
+          if (itemIndex !== questionIndex) return item;
+          const options = item.options.map((itemOption, itemOptionIndex) => itemOptionIndex === optionIndex
+            ? { ...itemOption, text: String(res.content).trim() }
+            : itemOption);
+          return { ...item, options };
+        });
+        this.refreshPreviewQuestions(this.normalizeQuestions(questions).questions);
+      },
+    });
+  },
+
   getParseOptions() {
     return {
       questionCount: parseInt(this.data.questionCounts[this.data.questionCountIndex], 10),
@@ -189,6 +276,9 @@ Page({
       if (options.length < 2) issues.push('选项不足');
       if (answer && !options.some(option => option.key === answer)) issues.push('答案不在选项中');
       if (!answer) issues.push('待补充答案');
+      if (/(?:画|划)\s*横线\s*部分/.test(question) && !/_{2,}|＿{2,}|…{2,}|\.{4,}|（\s*）|\(\s*\)/.test(question)) {
+        issues.push('横线内容需校对');
+      }
       if (fingerprint && seen.has(fingerprint)) issues.push('疑似重复题');
       if (fingerprint) seen.add(fingerprint);
       if (issues.length === 0) readyCount += 1;
@@ -196,6 +286,7 @@ Page({
       return {
         ...item,
         question,
+        rawQuestion: String(item.rawQuestion || question).trim(),
         options,
         answer,
         explanation: String(item.explanation || '').trim(),
@@ -378,6 +469,8 @@ Page({
         progress: 100,
         progressText: '完成！',
         previewQuestions: normalizedResult.questions.slice(0, 3),
+        allPreviewQuestions: normalizedResult.questions,
+        previewExpanded: false,
         parsedData: normalizedData,
         quota: newQuota,
         parsing: false,
@@ -451,6 +544,7 @@ Page({
           quizId: quizRes._id,
           openid,
           question: q.question,
+          rawQuestion: q.rawQuestion || q.question,
           options: q.options,
           answer: q.answer,
           explanation: q.explanation || '',

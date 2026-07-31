@@ -34,7 +34,7 @@
     <view class="upload-btn-item" bindtap="chooseFile">
       <view class="upload-btn-icon">📁</view>
       <text class="upload-btn-title">上传文档</text>
-      <text class="upload-btn-desc">PDF / Word / TXT</text>
+      <text class="upload-btn-desc">PDF / Word / Excel / TXT</text>
     </view>
     <view class="upload-btn-item primary" bindtap="chooseImages">
       <view class="upload-btn-icon">📷</view>
@@ -165,17 +165,20 @@
       <view class="preview-item" wx:for="{{previewQuestions}}" wx:key="index">
         <view class="preview-question-row">
           <text class="preview-idx">{{index+1}}</text>
-          <text class="preview-q">{{item.question}}</text>
-        </view>
-        <view class="preview-options" wx:if="{{item.options && item.options.length}}">
-          <view class="preview-option" wx:for="{{item.options}}" wx:for-item="option" wx:key="key">
-            <text class="preview-option-key">{{option.key}}</text>
-            <text class="preview-option-text">{{option.text}}</text>
+          <view class="preview-q-wrap">
+            <text class="preview-q">{{item.question}}</text>
+            <text class="preview-edit" bindtap="editQuestion" data-index="{{item.qualityIndex}}">校对题干</text>
           </view>
         </view>
-        <view class="preview-answer" wx:if="{{item.answer}}">
+        <view class="preview-options" wx:if="{{item.options && item.options.length}}">
+          <view class="preview-option" wx:for="{{item.options}}" wx:for-item="option" wx:for-index="optionIndex" wx:key="key">
+            <text class="preview-option-key">{{option.key}}</text>
+            <text class="preview-option-text" bindtap="editOption" data-index="{{item.qualityIndex}}" data-option-index="{{optionIndex}}">{{option.text}}</text>
+          </view>
+        </view>
+        <view class="preview-answer">
           <text class="preview-answer-label">参考答案</text>
-          <text class="preview-answer-value">{{item.answer}}</text>
+          <text class="preview-answer-value" bindtap="editAnswer" data-index="{{item.qualityIndex}}">{{item.answer || '点击选择答案'}}</text>
         </view>
         <view class="preview-explanation" wx:if="{{item.explanation}}">
           <text class="preview-explanation-label">解析</text>
@@ -186,8 +189,8 @@
         </view>
       </view>
     </view>
-    <view class="preview-more" wx:if="{{parsedData.questionCount > 3}}">
-      <text>...还有 {{parsedData.questionCount - 3}} 道题</text>
+    <view class="preview-more" wx:if="{{parsedData.questionCount > 3}}" bindtap="togglePreview">
+      <text>{{previewExpanded ? '收起预览' : '展开全部题目并校对'}}（共 {{parsedData.questionCount}} 题）</text>
     </view>
     <button class="btn-success" bindtap="saveQuiz">一键生成题库</button>
   </view>

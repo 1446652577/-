@@ -332,6 +332,74 @@ async function parsePptx(buffer) {
   return ocrTexts.length > 0 ? ocrTexts.join('\n\n') : textResult;
 }
 
+function decodeXmlText(value) {
+  return String(value || '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+function parseXlsx(buffer) {
+  const AdmZip = require('adm-zip');
+  const zip = new AdmZip(buffer);
+  const readXml = name => {
+    const entry = zip.getEntry(name);
+    return entry ? entry.getData().toString('utf8') : '';
+  };
+  const sharedStrings = [];
+  const sharedXml = readXml('xl/sharedStrings.xml');
+  const sharedMatches = sharedXml.match(/<si[\s\S]*?<\/si>/g) || [];
+  sharedMatches.forEach(item => {
+    const texts = item.match(/<t[^>]*>([\s\S]*?)<\/t>/g) || [];
+    sharedStrings.push(texts.map(text => decodeXmlText(text.replace(/^<t[^>]*>|<\/t>$/g, ''))).join(''));
+  });
+
+  const relsXml = readXml('xl/_rels/workbook.xml.rels');
+  const relations = {};
+  (relsXml.match(/<Relationship[^>]+>/g) || []).forEach(item => {
+    const id = item.match(/Id="([^"]+)"/)?.[1];
+    const target = item.match(/Target="([^"]+)"/)?.[1];
+    if (id && target) relations[id] = target.replace(/^\//, '').startsWith('xl/') ? target.replace(/^\//, '') : `xl/${target.replace(/^\//, '')}`;
+  });
+
+  const workbookXml = readXml('xl/workbook.xml');
+  const sheets = [];
+  const sheetMatches = workbookXml.match(/<sheet[^>]+>/g) || [];
+  sheetMatches.forEach(sheet => {
+    const name = sheet.match(/name="([^"]*)"/)?.[1] || '';
+    const relationId = sheet.match(/r:id="([^"]+)"/)?.[1];
+    const target = relationId && relations[relationId];
+    if (target) sheets.push({ name: decodeXmlText(name), target });
+  });
+
+  const output = [];
+  const columnRank = column => String(column || '').split('').reduce((total, char) => total * 26 + char.charCodeAt(0) - 64, 0);
+  sheets.forEach(sheet => {
+    const sheetXml = readXml(sheet.target);
+    const rows = sheetXml.match(/<row[\s\S]*?<\/row>/g) || [];
+    if (rows.length === 0) return;
+    output.push(`【${sheet.name}】`);
+    rows.forEach(row => {
+      const cells = [];
+      (row.match(/<c[\s\S]*?<\/c>/g) || []).forEach(cell => {
+        const type = cell.match(/\bt="([^"]+)"/)?.[1] || '';
+        const value = cell.match(/<v[^>]*>([\s\S]*?)<\/v>/)?.[1];
+        const inline = cell.match(/<t[^>]*>([\s\S]*?)<\/t>/)?.[1];
+        let text = inline !== undefined ? decodeXmlText(inline) : decodeXmlText(value || '');
+        if (type === 's' && value !== undefined) text = sharedStrings[Number(value)] || '';
+        const ref = cell.match(/\br="([A-Z]+\d+)"/)?.[1] || '';
+        const column = ref.match(/^([A-Z]+)/)?.[1] || '';
+        cells.push({ column, text });
+      });
+      cells.sort((a, b) => columnRank(a.column) - columnRank(b.column));
+      output.push(cells.map(cell => cell.text).join('\t'));
+    });
+  });
+  return output.join('\n').trim();
+}
+
 // ===================== 图片格式检测 =====================
 function isImageBuffer(buf) {
   if (!buf || buf.length < 8) return false;
@@ -714,6 +782,10 @@ exports.main = async (event, context) => {
         }
         case '.pptx':
           extractedText = await parsePptx(fileBuffer); sourceType = 'pptx'; break;
+        case '.xlsx':
+          extractedText = parseXlsx(fileBuffer); sourceType = 'xlsx'; break;
+        case '.xls':
+          return { code: -1, message: '暂不支持旧版.xls，请另存为.xlsx后上传' };
         case '.ppt':
           if (fileBuffer.length > 2 && fileBuffer[0] === 0x50 && fileBuffer[1] === 0x4B) {
             extractedText = await parsePptx(fileBuffer); sourceType = 'pptx';

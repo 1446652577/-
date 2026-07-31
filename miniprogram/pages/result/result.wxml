@@ -12,6 +12,10 @@
         <text class="res-label">总题数</text>
       </view>
       <view class="res-stat">
+        <text class="res-num">{{result.answered}}</text>
+        <text class="res-label">已作答</text>
+      </view>
+      <view class="res-stat">
         <text class="res-num correct">{{result.correct}}</text>
         <text class="res-label">正确</text>
       </view>
@@ -20,6 +24,10 @@
         <text class="res-label">错误</text>
       </view>
     </view>
+  </view>
+
+  <view class="card tip-card" wx:if="{{result.unanswered > 0}}">
+    <text class="tip-text">还有 {{result.unanswered}} 道题未作答，可返回题库继续练习。</text>
   </view>
 
   <view class="card tip-card" wx:if="{{result.wrong > 0}}">

@@ -155,6 +155,11 @@
   align-items: flex-start;
 }
 
+.preview-q-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
 .preview-idx {
   width: 44rpx;
   height: 44rpx;
@@ -170,13 +175,20 @@
 }
 
 .preview-q {
-  flex: 1;
+  display: block;
   color: #262626;
   font-size: 29rpx;
   line-height: 1.6;
   font-weight: 500;
   word-break: break-all;
   white-space: pre-wrap;
+}
+
+.preview-edit {
+  display: inline-block;
+  margin-top: 10rpx;
+  color: #4A90D9;
+  font-size: 23rpx;
 }
 
 .preview-options {
@@ -210,6 +222,7 @@
   line-height: 1.55;
   word-break: break-all;
   white-space: pre-wrap;
+  text-decoration: underline;
 }
 
 .preview-answer,
@@ -233,6 +246,7 @@
   color: #52C41A;
   font-size: 26rpx;
   font-weight: bold;
+  text-decoration: underline;
 }
 
 .preview-explanation-text {
@@ -283,4 +297,14 @@
   color: #AD6800;
   font-size: 24rpx;
   line-height: 1.5;
+}
+
+.preview-more {
+  margin: 20rpx 0;
+  padding: 20rpx;
+  color: #4A90D9;
+  background: #F0F7FF;
+  border-radius: 12rpx;
+  text-align: center;
+  font-size: 25rpx;
 }
