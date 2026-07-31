@@ -22,30 +22,43 @@ Page({
     }
   },
 
-  loadQuiz(quizId) {
+  async loadQuiz(quizId) {
     util.showLoading('加载中...');
-    const db = wx.cloud.database();
     
-    db.collection('quizzes').doc(quizId).get().then(res => {
-      this.setData({ quizTitle: res.data.title });
-      return db.collection('questions').where({ quizId }).get();
-    }).then(res => {
-      const questions = res.data.map(q => ({
+    try {
+      // 调用云函数获取全部题目（云函数端不受20条限制）
+      const res = await wx.cloud.callFunction({
+        name: 'getQuizQuestions',
+        data: { quizId }
+      });
+
+      const result = res.result || {};
+      if (result.code !== 0) {
+        throw new Error(result.message || '查询失败');
+      }
+
+      const data = result.data || {};
+      const questions = (Array.isArray(data.questions) ? data.questions : []).map(q => ({
         ...q,
         options: this.parseOptions(q.options),
       }));
+      if (questions.length === 0) throw new Error('题库暂无题目');
+
       this.setData({
+        quizTitle: data.title,
         questions,
         currentQuestion: questions[0],
       });
       util.hideLoading();
-    }).catch(err => {
+    } catch (err) {
+      console.error('[loadQuiz] 失败:', err);
       util.showToast('加载失败');
       util.hideLoading();
-    });
+    }
   },
 
   parseOptions(options) {
+    if (!Array.isArray(options)) return [];
     if (Array.isArray(options) && options.length > 0 && typeof options[0] === 'object') {
       return options;
     }
@@ -66,7 +79,6 @@ Page({
       showResult: true,
     });
 
-    // 如果题目没有设置答案，只记录选择，不计对错
     if (!hasAnswer) {
       wx.showToast({ title: '本题未设置答案', icon: 'none' });
     } else if (isCorrect) {
@@ -76,11 +88,9 @@ Page({
         wrongCount: this.data.wrongCount + 1,
         wrongQuestions: [...this.data.wrongQuestions, currentQuestion],
       });
-      // 保存错题
       this.saveWrongQuestion(currentQuestion);
     }
 
-    // 记录答案
     const answers = { ...this.data.answers, [currentQuestion._id]: key };
     this.setData({ answers });
   },

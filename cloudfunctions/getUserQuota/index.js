@@ -3,7 +3,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 
 exports.main = async (event, context) => {
-  const { openid } = event;
+  const { OPENID: openid } = cloud.getWXContext();
   if (!openid) return { code: -1, message: '缺少openid' };
 
   try {

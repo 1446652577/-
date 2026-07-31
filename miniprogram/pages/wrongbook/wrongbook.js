@@ -15,38 +15,48 @@ Page({
     this.loadWrongQuestions();
   },
 
-  loadWrongQuestions() {
+  async loadWrongQuestions() {
     const openid = wx.getStorageSync('openid');
     if (!openid) return;
 
     util.showLoading('加载中...');
-    const db = wx.cloud.database();
     
-    db.collection('wrongBooks')
-      .where({ _openid: openid })
-      .orderBy('lastWrongTime', 'desc')
-      .get()
-      .then(res => {
-        const questions = res.data.map(item => ({
-          ...item,
-          options: this.parseOptions(item.options),
-        }));
-        const reviewedCount = questions.filter(q => q.reviewed).length;
-        const masteredCount = questions.filter(q => q.mastered).length;
-        this.setData({
-          wrongQuestions: questions,
-          reviewedCount,
-          masteredCount,
-        });
-        util.hideLoading();
-      })
-      .catch(() => {
-        util.hideLoading();
-        util.showToast('加载失败');
+    try {
+      // 调用云函数获取全部错题（不受20条限制）
+      const res = await wx.cloud.callFunction({
+        name: 'getWrongQuestions',
+        data: { openid }
       });
+
+      const result = res.result || {};
+      if (result.code !== 0) {
+        throw new Error(result.message || '查询失败');
+      }
+
+      const rawQuestions = result.data && result.data.questions;
+      const questions = (Array.isArray(rawQuestions) ? rawQuestions : []).map(item => ({
+        ...item,
+        options: this.parseOptions(item.options),
+      }));
+
+      const reviewedCount = questions.filter(q => q.reviewed).length;
+      const masteredCount = questions.filter(q => q.mastered).length;
+
+      this.setData({
+        wrongQuestions: questions,
+        reviewedCount,
+        masteredCount,
+      });
+      util.hideLoading();
+    } catch (err) {
+      console.error('[loadWrongQuestions] 失败:', err);
+      util.hideLoading();
+      util.showToast('加载失败');
+    }
   },
 
   parseOptions(options) {
+    if (!Array.isArray(options)) return [];
     if (Array.isArray(options) && options.length > 0 && typeof options[0] === 'object') {
       return options;
     }

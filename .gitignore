@@ -12,3 +12,9 @@ $RECYCLE.BIN/
 
 # Node.js
 node_modules/
+
+# Local secrets and WeChat DevTools settings
+.env
+.env.*
+!.env.example
+project.private.config.json

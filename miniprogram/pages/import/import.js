@@ -17,6 +17,10 @@ Page({
     isPptFile: false,
     isScanFile: false,
     imageList: [],
+    // 轮询相关
+    jobId: null,
+    pollTimer: null,
+    isPolling: false,
   },
 
   onLoad() {
@@ -28,6 +32,10 @@ Page({
         if (res.result && res.result.openid) wx.setStorageSync('openid', res.result.openid);
       }});
     }
+  },
+
+  onUnload() {
+    this.stopPolling();
   },
 
   chooseFile() {
@@ -62,11 +70,14 @@ Page({
 
   onCountChange(e) { this.setData({ questionCountIndex: e.detail.value }); },
 
+  // ===================== 开始解析 =====================
   async startParse() {
     const openid = wx.getStorageSync('openid');
     if (!openid) { this.setData({ errorMsg: '请先登录' }); return; }
     const quota = wx.getStorageSync('userQuota') || 0;
     if (quota <= 0) { this.setData({ errorMsg: '额度不足' }); return; }
+
+    this._parseCompletionDone = false;
 
     if (this.data.imageList.length > 0) {
       await this.parseImages();
@@ -76,53 +87,190 @@ Page({
     if (!this.data.filePath) { this.setData({ errorMsg: '请先选择文件或截图' }); return; }
     const isPdf = this.data.fileName.toLowerCase().endsWith('.pdf');
     this.setData({ parsing: true, progress: 10, progressText: '上传文件中...', errorMsg: '', isScanFile: false });
+
     try {
       const ext = this.data.fileName.substring(this.data.fileName.lastIndexOf('.'));
       const cloudPath = 'uploads/' + Date.now() + ext;
       const uploadRes = await wx.cloud.uploadFile({ cloudPath, filePath: this.data.filePath });
-      this.setData({ 
-        progress: 40, 
-        progressText: isPdf ? '扫描版PDF转图片识别中，请稍候...' : '解析中...' 
+      this.setData({ progress: 30, progressText: isPdf ? '扫描版PDF转图片识别中...' : '解析中...' });
+
+      const parseRes = await wx.cloud.callFunction({
+        name: 'parseDocument',
+        data: {
+          fileID: uploadRes.fileID,
+          fileName: this.data.fileName,
+          questionCount: parseInt(this.data.questionCounts[this.data.questionCountIndex])
+        }
       });
-      const parseRes = await wx.cloud.callFunction({ name: 'parseDocument', data: { fileID: uploadRes.fileID, fileName: this.data.fileName, questionCount: parseInt(this.data.questionCounts[this.data.questionCountIndex]) }});
-      this.setData({ progress: 80, progressText: '处理结果...' });
+
       if (parseRes.result && parseRes.result.code === 0) {
         const data = parseRes.result.data;
-        if (data.isScanFile) {
-          this.setData({ parsing: false, progress: 0, isScanFile: true, fileName: '', filePath: '', fileSize: '', errorMsg: '' });
-          const errorDetail = data.aiDetail && data.aiDetail.error || '';
-          if (errorDetail.includes('配置') || errorDetail.includes('COS')) {
-            wx.showModal({
-              title: '⚙️ 扫描版PDF需配置COS',
-              content: '该PDF是扫描版（图片格式），需要配置腾讯云COS+数据万象才能自动识别。\n\n也可使用「截图上传」功能直接识别。',
-              showCancel: true,
-              cancelText: '截图上传',
-              confirmText: '查看配置步骤',
-              success: (res) => {
-                if (res.confirm) {
-                  wx.showModal({ title: '配置步骤', content: errorDetail, showCancel: false });
-                }
-              }
-            });
-          } else {
-            wx.showModal({ title: '📄 自动识别失败', content: errorDetail || '该PDF是图片格式，自动识别失败。请使用「截图上传」功能。', showCancel: false, confirmText: '知道了' });
-          }
+
+        // ===== 扫描版PDF分批处理：启动轮询 =====
+        if (data.status === 'processing') {
+          this.setData({
+            jobId: data.jobId,
+            isPolling: true,
+            progressText: `正在识别... (${data.progress || '处理中'})`,
+            progress: 35
+          });
+          this.startPolling();
           return;
         }
-        await wx.cloud.callFunction({ name: 'consumeQuota', data: { openid } });
-        const newQuota = quota - 1; wx.setStorageSync('userQuota', newQuota);
-        this.setData({ progress: 100, progressText: '完成！', previewQuestions: data.questions.slice(0, 3), parsedData: data, quota: newQuota, parsing: false });
-        wx.showToast({ title: '生成成功！', icon: 'success' });
+
+        // ===== 普通文件直接完成 =====
+        this.setData({ progress: 80, progressText: '处理结果...' });
+        await this.handleParseComplete(data);
       } else {
         throw new Error((parseRes.result && parseRes.result.message) || '解析失败');
       }
     } catch (err) {
       const msg = err.message || err.errMsg || '未知错误';
-      this.setData({ parsing: false, progress: 0, errorMsg: msg });
+      this.setData({ parsing: false, progress: 0, errorMsg: msg, isPolling: false });
       wx.showToast({ title: msg, icon: 'none' });
     }
   },
 
+  // ===================== 轮询逻辑 =====================
+  startPolling() {
+    this.stopPolling();
+    this.setData({ isPolling: true });
+    this.pollJobStatus().finally(() => this.schedulePolling());
+  },
+
+  schedulePolling() {
+    if (!this.data.isPolling || !this.data.jobId) return;
+    const timer = setTimeout(() => {
+      this.pollJobStatus().finally(() => this.schedulePolling());
+    }, 3000);
+    this.setData({ pollTimer: timer });
+  },
+
+  stopPolling() {
+    if (this.data.pollTimer) {
+      clearInterval(this.data.pollTimer);
+      this.setData({ pollTimer: null, isPolling: false });
+    }
+  },
+
+  async pollJobStatus() {
+    const { jobId } = this.data;
+    if (!jobId) return;
+
+    try {
+      // 查询当前进度
+      const statusRes = await wx.cloud.callFunction({
+        name: 'parseDocument',
+        data: { mode: 'scan_pdf_status', jobId }
+      });
+
+      if (statusRes.result.code !== 0) {
+        this.stopPolling();
+        this.setData({ parsing: false, progress: 0, errorMsg: statusRes.result.message || '查询失败' });
+        return;
+      }
+
+      const job = statusRes.result.data;
+      const percent = job.totalPages > 0 ? Math.round((job.processedPages / job.totalPages) * 100) : 0;
+      this.setData({
+        progressText: `正在识别... ${job.processedPages}/${job.totalPages} 页`,
+        progress: 30 + Math.round(percent * 0.6) // 30-90% 区间
+      });
+
+      // 已完成
+      if (job.status === 'done') {
+        this.stopPolling();
+        this.setData({ progress: 90, progressText: '处理结果...' });
+        await this.handleParseComplete(job);
+        return;
+      }
+
+      // 失败
+      if (job.status === 'failed') {
+        this.stopPolling();
+        this.setData({ parsing: false, progress: 0, errorMsg: job.error || '处理失败' });
+        return;
+      }
+
+      // 还在处理中，触发下一批
+      if (job.status === 'processing') {
+        const continueRes = await wx.cloud.callFunction({
+          name: 'parseDocument',
+          data: { mode: 'scan_pdf_continue', jobId }
+        });
+        console.log('[poll] continue:', continueRes.result);
+
+        if (continueRes.result.code !== 0) {
+          this.stopPolling();
+          this.setData({ parsing: false, progress: 0, errorMsg: continueRes.result.message || '处理失败' });
+          return;
+        }
+
+        const continueData = continueRes.result.data;
+        if (continueData.status === 'done') {
+          this.stopPolling();
+          this.setData({ progress: 90, progressText: '处理结果...' });
+          await this.handleParseComplete(continueData);
+        }
+      }
+    } catch (err) {
+      console.error('[poll] 异常:', err);
+      // 轮询异常不停止，继续下次
+    }
+  },
+
+  // ===================== 解析完成后的统一处理 =====================
+  async handleParseComplete(data) {
+    if (!data || !Array.isArray(data.questions)) {
+      throw new Error('解析结果无效');
+    }
+    if (this._parseCompletionDone) return;
+    if (this._parseCompletionInFlight) return this._parseCompletionInFlight;
+
+    this._parseCompletionInFlight = (async () => {
+      const openid = wx.getStorageSync('openid');
+      if (!openid) throw new Error('登录状态已失效，请重新进入小程序');
+
+      const consumeRes = await wx.cloud.callFunction({
+        name: 'consumeQuota',
+        data: { openid },
+      });
+      if (!consumeRes.result || consumeRes.result.code !== 0) {
+        throw new Error((consumeRes.result && consumeRes.result.message) || '额度扣减失败，请重试');
+      }
+
+      const consumeData = consumeRes.result.data || {};
+      const newQuota = Number.isFinite(consumeData.quota)
+        ? consumeData.quota
+        : Math.max(0, (wx.getStorageSync('userQuota') || 0) - 1);
+      wx.setStorageSync('userQuota', newQuota);
+      this._parseCompletionDone = true;
+
+      this.setData({
+        progress: 100,
+        progressText: '完成！',
+        previewQuestions: data.questions.slice(0, 3),
+        parsedData: data,
+        quota: newQuota,
+        parsing: false,
+        isPolling: false,
+        jobId: null,
+      });
+      wx.showToast({ title: '生成成功！共' + (data.questionCount || 0) + '题', icon: 'success' });
+    })();
+
+    try {
+      return await this._parseCompletionInFlight;
+    } catch (err) {
+      this.stopPolling();
+      this.setData({ parsing: false, isPolling: false, jobId: null, errorMsg: err.message || '处理失败' });
+      throw err;
+    } finally {
+      this._parseCompletionInFlight = null;
+    }
+  },
+
+  // ===================== 截图模式（原逻辑不变）=====================
   async parseImages() {
     const openid = wx.getStorageSync('openid');
     const quota = wx.getStorageSync('userQuota') || 0;
@@ -149,10 +297,7 @@ Page({
       this.setData({ progress: 80, progressText: 'AI生成题目中...' });
       if (parseRes.result && parseRes.result.code === 0) {
         const data = parseRes.result.data;
-        await wx.cloud.callFunction({ name: 'consumeQuota', data: { openid } });
-        const newQuota = quota - 1; wx.setStorageSync('userQuota', newQuota);
-        this.setData({ progress: 100, progressText: '完成！', previewQuestions: data.questions.slice(0, 3), parsedData: data, quota: newQuota, parsing: false });
-        wx.showToast({ title: '识别成功！共' + data.questions.length + '题', icon: 'success' });
+        await this.handleParseComplete(data);
       } else {
         throw new Error((parseRes.result && parseRes.result.message) || '识别失败');
       }
@@ -163,6 +308,7 @@ Page({
     }
   },
 
+  // ===================== 保存题库 =====================
   async saveQuiz() {
     if (!this.data.parsedData) return;
     wx.showLoading({ title: '保存中...' });

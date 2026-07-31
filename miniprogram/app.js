@@ -21,20 +21,17 @@ App({
   },
 
   checkUserLogin() {
-    const openid = wx.getStorageSync('openid');
-    if (!openid) {
-      wx.cloud.callFunction({
-        name: 'login',
-        success: res => {
-          if (res.result && res.result.openid) {
-            wx.setStorageSync('openid', res.result.openid);
-            this.getUserQuota(res.result.openid);
-          }
+    // 每次启动都调用登录云函数，让服务端处理每日首次登录奖励。
+    wx.cloud.callFunction({
+      name: 'login',
+      success: res => {
+        if (res.result && res.result.code === 0 && res.result.openid) {
+          wx.setStorageSync('openid', res.result.openid);
+          this.getUserQuota(res.result.openid);
         }
-      });
-    } else {
-      this.getUserQuota(openid);
-    }
+      },
+      fail: err => console.error('[login] 失败:', err),
+    });
   },
 
   getUserQuota(openid) {
