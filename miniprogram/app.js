@@ -2,7 +2,7 @@ App({
   onLaunch: function () {
     this.globalData = {
       env: "llll-d9gppqiqb230a9fa8",
-      parseServiceUrl: "",
+      parseServiceUrl: "https://llll-d9gppqiqb230a9fa8.tcloudbaseapp.com",
     };
     if (!wx.cloud) {
       console.error("请使用 2.2.3 或以上的基础库以使用云能力");
@@ -17,7 +17,7 @@ App({
 
   globalData: {
     env: "llll-d9gppqiqb230a9fa8",
-    parseServiceUrl: "",
+    parseServiceUrl: "https://llll-d9gppqiqb230a9fa8.tcloudbaseapp.com",
     userInfo: null,
     quota: 0,
   },

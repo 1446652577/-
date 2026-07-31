@@ -18,7 +18,7 @@ PARSE_RUN_TOKEN_SECRET=一串随机的长密钥
 构建上下文选择项目根目录，Dockerfile 选择：
 
 ```text
-cloudrun/parseDocument/Dockerfile
+Dockerfile
 ```
 
 配置环境变量：
