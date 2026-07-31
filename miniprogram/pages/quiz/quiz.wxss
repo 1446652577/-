@@ -45,7 +45,7 @@
 .question-card {
   background: #fff;
   border-radius: 16rpx;
-  padding: 30rpx;
+  padding: 32rpx 28rpx;
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
 }
 
@@ -57,11 +57,13 @@
 }
 
 .question-text {
-  font-size: 32rpx;
+  font-size: 34rpx;
   color: #333;
-  line-height: 1.6;
+  line-height: 1.65;
   margin-bottom: 30rpx;
   font-weight: 500;
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 .options-list {
@@ -70,7 +72,7 @@
 
 .option-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   padding: 24rpx 20rpx;
   margin-bottom: 16rpx;
   border-radius: 12rpx;
@@ -109,6 +111,7 @@
   font-size: 26rpx;
   color: #666;
   margin-right: 20rpx;
+  margin-top: 2rpx;
   flex-shrink: 0;
 }
 
@@ -131,7 +134,9 @@
   flex: 1;
   font-size: 28rpx;
   color: #333;
-  line-height: 1.5;
+  line-height: 1.6;
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 .option-result {
@@ -171,7 +176,17 @@
 .answer-text {
   font-size: 26rpx;
   color: #333;
-  line-height: 1.5;
+  line-height: 1.6;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.auto-next-tip {
+  display: block;
+  margin-top: 20rpx;
+  color: #8C8C8C;
+  font-size: 24rpx;
+  text-align: center;
 }
 
 .quiz-footer {

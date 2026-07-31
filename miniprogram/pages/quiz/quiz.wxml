@@ -47,6 +47,7 @@
         <text class="answer-label">解析：</text>
         <text class="answer-text">{{currentQuestion.explanation}}</text>
       </view>
+      <text class="auto-next-tip">{{nextHint}}</text>
     </view>
   </view>
 

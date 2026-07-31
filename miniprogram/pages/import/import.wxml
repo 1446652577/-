@@ -122,9 +122,24 @@
     
     <view class="preview-list">
       <view class="preview-item" wx:for="{{previewQuestions}}" wx:key="index">
-        <text class="preview-idx">{{index+1}}.</text>
-        <text class="preview-q">{{item.question}}</text>
-        <text wx:if="{{item.answer}}" class="preview-ans">[{{item.answer}}]</text>
+        <view class="preview-question-row">
+          <text class="preview-idx">{{index+1}}</text>
+          <text class="preview-q">{{item.question}}</text>
+        </view>
+        <view class="preview-options" wx:if="{{item.options && item.options.length}}">
+          <view class="preview-option" wx:for="{{item.options}}" wx:for-item="option" wx:key="key">
+            <text class="preview-option-key">{{option.key}}</text>
+            <text class="preview-option-text">{{option.text}}</text>
+          </view>
+        </view>
+        <view class="preview-answer" wx:if="{{item.answer}}">
+          <text class="preview-answer-label">参考答案</text>
+          <text class="preview-answer-value">{{item.answer}}</text>
+        </view>
+        <view class="preview-explanation" wx:if="{{item.explanation}}">
+          <text class="preview-explanation-label">解析</text>
+          <text class="preview-explanation-text">{{item.explanation}}</text>
+        </view>
       </view>
     </view>
     <view class="preview-more" wx:if="{{parsedData.questionCount > 3}}">

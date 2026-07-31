@@ -13,6 +13,7 @@ Page({
     wrongCount: 0,
     wrongQuestions: [],
     answers: {},
+    nextHint: '',
   },
 
   onLoad(options) {
@@ -20,6 +21,10 @@ Page({
       this.setData({ quizId: options.quizId });
       this.loadQuiz(options.quizId);
     }
+  },
+
+  onUnload() {
+    this.clearAutoNextTimer();
   },
 
   async loadQuiz(quizId) {
@@ -77,6 +82,9 @@ Page({
     this.setData({
       selectedOption: key,
       showResult: true,
+      nextHint: this.data.currentIndex === this.data.questions.length - 1
+        ? '即将查看练习结果…'
+        : '即将进入下一题…',
     });
 
     if (!hasAnswer) {
@@ -93,6 +101,26 @@ Page({
 
     const answers = { ...this.data.answers, [currentQuestion._id]: key };
     this.setData({ answers });
+    this.scheduleAutoNext();
+  },
+
+  clearAutoNextTimer() {
+    if (this._autoNextTimer) {
+      clearTimeout(this._autoNextTimer);
+      this._autoNextTimer = null;
+    }
+  },
+
+  scheduleAutoNext() {
+    this.clearAutoNextTimer();
+    this._autoNextTimer = setTimeout(() => {
+      this._autoNextTimer = null;
+      if (this.data.currentIndex >= this.data.questions.length - 1) {
+        this.finishQuiz();
+      } else {
+        this.nextQuestion();
+      }
+    }, 900);
   },
 
   saveWrongQuestion(question) {
@@ -132,6 +160,7 @@ Page({
   },
 
   prevQuestion() {
+    this.clearAutoNextTimer();
     if (this.data.currentIndex === 0) return;
     const newIndex = this.data.currentIndex - 1;
     const q = this.data.questions[newIndex];
@@ -140,10 +169,12 @@ Page({
       currentQuestion: q,
       selectedOption: this.data.answers[q._id] || '',
       showResult: !!this.data.answers[q._id],
+      nextHint: '',
     });
   },
 
   nextQuestion() {
+    this.clearAutoNextTimer();
     if (this.data.currentIndex >= this.data.questions.length - 1) return;
     const newIndex = this.data.currentIndex + 1;
     const q = this.data.questions[newIndex];
@@ -152,10 +183,12 @@ Page({
       currentQuestion: q,
       selectedOption: this.data.answers[q._id] || '',
       showResult: !!this.data.answers[q._id],
+      nextHint: '',
     });
   },
 
   finishQuiz() {
+    this.clearAutoNextTimer();
     const { quizId, questions, correctCount, wrongCount } = this.data;
     const result = {
       quizId,
