@@ -66,6 +66,16 @@
   white-space: pre-wrap;
 }
 
+.question-blank {
+  display: inline-block;
+  color: #222;
+  font-size: 30rpx;
+  font-weight: bold;
+  letter-spacing: 3rpx;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
 .options-list {
   margin-bottom: 20rpx;
 }

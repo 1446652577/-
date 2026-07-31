@@ -53,6 +53,7 @@ Page({
       const questions = (Array.isArray(data.questions) ? data.questions : []).map(q => ({
         ...q,
         options: this.parseOptions(q.options),
+        questionParts: this.buildQuestionParts(q.question),
       }));
       if (questions.length === 0) throw new Error('题库暂无题目');
 
@@ -82,6 +83,28 @@ Page({
     return options.map((text, i) => ({ key: keys[i] || String(i), text }));
   },
 
+  buildQuestionParts(question) {
+    const raw = String(question || '').replace(/\r\n/g, '\n');
+    const blankToken = '__QUIZ_BLANK__';
+    let normalized = raw
+      .replace(/_{2,}|＿{2,}|…{2,}|\.{4,}|（\s*）|\(\s*\)|【\s*】/g, blankToken)
+      .replace(/(?:画|划)\s*横线\s*部分/g, blankToken);
+
+    if (normalized === raw && /填入.{0,10}(横线|下划线|空格|括号)/.test(raw)) {
+      normalized = raw.replace(/横线部分|下划线部分|空格部分|括号内/g, blankToken);
+    }
+
+    const pieces = normalized.split(blankToken);
+    if (pieces.length === 1) return [{ type: 'text', text: raw }];
+
+    const parts = [];
+    pieces.forEach((text, index) => {
+      if (text) parts.push({ type: 'text', text });
+      if (index < pieces.length - 1) parts.push({ type: 'blank', text: '__________' });
+    });
+    return parts;
+  },
+
   shuffleQuestions(questions) {
     const result = [...questions];
     for (let i = result.length - 1; i > 0; i -= 1) {
@@ -98,6 +121,7 @@ Page({
       ...q,
       _id: q.questionId || q._id,
       options: this.parseOptions(q.options),
+      questionParts: this.buildQuestionParts(q.question),
     })).filter(q => q.question && q.options.length > 0);
     if (questions.length === 0) {
       wx.showToast({ title: '暂无可复习的错题', icon: 'none' });

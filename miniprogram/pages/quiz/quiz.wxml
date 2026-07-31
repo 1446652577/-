@@ -13,7 +13,12 @@
   <!-- 题目区域 -->
   <view class="question-card" wx:if="{{currentQuestion}}">
     <view class="question-number">第 {{currentIndex + 1}} 题</view>
-    <view class="question-text">{{currentQuestion.question}}</view>
+    <view class="question-text">
+      <block wx:for="{{currentQuestion.questionParts}}" wx:key="index">
+        <text wx:if="{{item.type === 'text'}}">{{item.text}}</text>
+        <text wx:else class="question-blank">{{item.text}}</text>
+      </block>
+    </view>
     
     <view class="options-list">
       <view 
