@@ -243,3 +243,44 @@
   word-break: break-all;
   white-space: pre-wrap;
 }
+
+.quality-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  padding: 18rpx 20rpx;
+  margin-bottom: 20rpx;
+  background: #F7FAFC;
+  border-radius: 12rpx;
+}
+
+.quality-summary-title {
+  width: 100%;
+  color: #262626;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.quality-ready,
+.quality-warning {
+  font-size: 24rpx;
+}
+
+.quality-ready {
+  color: #389E0D;
+}
+
+.quality-warning {
+  color: #D48806;
+}
+
+.preview-quality-warning {
+  margin-top: 18rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 8rpx;
+  background: #FFFBE6;
+  color: #AD6800;
+  font-size: 24rpx;
+  line-height: 1.5;
+}

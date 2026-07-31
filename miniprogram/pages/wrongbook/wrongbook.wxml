@@ -14,6 +14,14 @@
     </view>
   </view>
 
+  <view class="review-entry" wx:if="{{reviewableCount > 0}}">
+    <view>
+      <text class="review-entry-title">今天复习错题</text>
+      <text class="review-entry-desc">优先复习未掌握题目，最多进入20题</text>
+    </view>
+    <view class="review-entry-btn" bindtap="startWrongPractice">开始复习</view>
+  </view>
+
   <view class="wrong-list" wx:if="{{wrongQuestions.length > 0}}">
     <view class="wrong-item" wx:for="{{wrongQuestions}}" wx:key="_id">
       <view class="wrong-header">

@@ -14,12 +14,19 @@ Page({
     wrongQuestions: [],
     answers: {},
     nextHint: '',
+    practiceMode: 'normal',
   },
 
   onLoad(options) {
+    const practiceMode = options.mode || 'normal';
+    this.setData({ practiceMode });
+    if (practiceMode === 'wrong') {
+      this.loadWrongPractice();
+      return;
+    }
     if (options.quizId) {
       this.setData({ quizId: options.quizId });
-      this.loadQuiz(options.quizId);
+      this.loadQuiz(options.quizId, practiceMode);
     }
   },
 
@@ -27,7 +34,7 @@ Page({
     this.clearAutoNextTimer();
   },
 
-  async loadQuiz(quizId) {
+  async loadQuiz(quizId, practiceMode = this.data.practiceMode) {
     util.showLoading('加载中...');
     
     try {
@@ -49,10 +56,14 @@ Page({
       }));
       if (questions.length === 0) throw new Error('题库暂无题目');
 
+      const preparedQuestions = practiceMode === 'random'
+        ? this.shuffleQuestions(questions).slice(0, Math.min(10, questions.length))
+        : questions;
+
       this.setData({
         quizTitle: data.title,
-        questions,
-        currentQuestion: questions[0],
+        questions: preparedQuestions,
+        currentQuestion: preparedQuestions[0],
       });
       util.hideLoading();
     } catch (err) {
@@ -69,6 +80,36 @@ Page({
     }
     const keys = ['A', 'B', 'C', 'D'];
     return options.map((text, i) => ({ key: keys[i] || String(i), text }));
+  },
+
+  shuffleQuestions(questions) {
+    const result = [...questions];
+    for (let i = result.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  },
+
+  loadWrongPractice() {
+    const stored = wx.getStorageSync('wrongPracticeQuestions') || [];
+    wx.removeStorageSync('wrongPracticeQuestions');
+    const questions = (Array.isArray(stored) ? stored : []).map(q => ({
+      ...q,
+      _id: q.questionId || q._id,
+      options: this.parseOptions(q.options),
+    })).filter(q => q.question && q.options.length > 0);
+    if (questions.length === 0) {
+      wx.showToast({ title: '暂无可复习的错题', icon: 'none' });
+      setTimeout(() => wx.navigateBack(), 600);
+      return;
+    }
+    const shuffledQuestions = this.shuffleQuestions(questions);
+    this.setData({
+      quizTitle: '错题复习',
+      questions: shuffledQuestions,
+      currentQuestion: shuffledQuestions[0],
+    });
   },
 
   selectOption(e) {

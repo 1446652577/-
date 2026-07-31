@@ -27,6 +27,9 @@
         <view class="action-btn practice-btn" bindtap="startPractice" data-id="{{item._id}}">
           <text>📝 开始练习</text>
         </view>
+        <view class="action-btn random-btn" bindtap="startRandomPractice" data-id="{{item._id}}">
+          <text>🎲 随机10题</text>
+        </view>
         <view class="action-btn delete-btn" bindtap="deleteQuiz" data-id="{{item._id}}">
           <text>🗑️ 删除</text>
         </view>

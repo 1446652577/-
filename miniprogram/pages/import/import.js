@@ -2,6 +2,12 @@ const app = getApp();
 
 Page({
   data: {
+    subjectOptions: ['通用', '语文', '数学', '英语', '物理', '化学', '历史', '地理', '生物'],
+    subjectIndex: 0,
+    difficultyOptions: ['不限', '基础', '中等', '提高'],
+    difficultyIndex: 2,
+    questionTypeOptions: ['自动识别', '单选题', '判断题'],
+    questionTypeIndex: 0,
     fileName: '',
     fileSize: '',
     filePath: '',
@@ -70,6 +76,65 @@ Page({
 
   onCountChange(e) { this.setData({ questionCountIndex: e.detail.value }); },
 
+  onSubjectChange(e) { this.setData({ subjectIndex: Number(e.detail.value) }); },
+
+  onDifficultyChange(e) { this.setData({ difficultyIndex: Number(e.detail.value) }); },
+
+  onQuestionTypeChange(e) { this.setData({ questionTypeIndex: Number(e.detail.value) }); },
+
+  getParseOptions() {
+    return {
+      questionCount: parseInt(this.data.questionCounts[this.data.questionCountIndex], 10),
+      subject: this.data.subjectOptions[this.data.subjectIndex],
+      difficulty: this.data.difficultyOptions[this.data.difficultyIndex],
+      questionType: this.data.questionTypeOptions[this.data.questionTypeIndex],
+    };
+  },
+
+  normalizeQuestions(questions) {
+    const seen = new Set();
+    let readyCount = 0;
+    let warningCount = 0;
+    const normalized = (Array.isArray(questions) ? questions : []).map((item, index) => {
+      const question = String(item.question || '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      const options = (Array.isArray(item.options) ? item.options : [])
+        .map((option, optionIndex) => ({
+          key: String(option.key || String.fromCharCode(65 + optionIndex)).toUpperCase(),
+          text: String(option.text || '').replace(/\u00a0/g, ' ').trim(),
+        }))
+        .filter(option => option.text);
+      const answer = String(item.answer || '').trim().toUpperCase();
+      const fingerprint = question.replace(/\s/g, '').toLowerCase();
+      const issues = [];
+      if (question.length < 4) issues.push('题干过短');
+      if (options.length < 2) issues.push('选项不足');
+      if (answer && !options.some(option => option.key === answer)) issues.push('答案不在选项中');
+      if (!answer) issues.push('待补充答案');
+      if (fingerprint && seen.has(fingerprint)) issues.push('疑似重复题');
+      if (fingerprint) seen.add(fingerprint);
+      if (issues.length === 0) readyCount += 1;
+      else warningCount += 1;
+      return {
+        ...item,
+        question,
+        options,
+        answer,
+        explanation: String(item.explanation || '').trim(),
+        qualityIssue: issues.join('、'),
+        qualityLevel: issues.length === 0 ? '可直接使用' : '建议检查',
+        qualityIndex: index,
+      };
+    }).filter(item => item.question.length > 0);
+    return {
+      questions: normalized,
+      summary: { total: normalized.length, ready: readyCount, warning: warningCount },
+    };
+  },
+
   // ===================== 开始解析 =====================
   async startParse() {
     const openid = wx.getStorageSync('openid');
@@ -97,9 +162,9 @@ Page({
       const parseRes = await wx.cloud.callFunction({
         name: 'parseDocument',
         data: {
+          ...this.getParseOptions(),
           fileID: uploadRes.fileID,
           fileName: this.data.fileName,
-          questionCount: parseInt(this.data.questionCounts[this.data.questionCountIndex])
         }
       });
 
@@ -227,6 +292,14 @@ Page({
     if (this._parseCompletionDone) return;
     if (this._parseCompletionInFlight) return this._parseCompletionInFlight;
 
+    const normalizedResult = this.normalizeQuestions(data.questions);
+    const normalizedData = {
+      ...data,
+      questions: normalizedResult.questions,
+      questionCount: normalizedResult.questions.length,
+      qualitySummary: normalizedResult.summary,
+    };
+
     this._parseCompletionInFlight = (async () => {
       const openid = wx.getStorageSync('openid');
       if (!openid) throw new Error('登录状态已失效，请重新进入小程序');
@@ -249,8 +322,8 @@ Page({
       this.setData({
         progress: 100,
         progressText: '完成！',
-        previewQuestions: data.questions.slice(0, 3),
-        parsedData: data,
+        previewQuestions: normalizedResult.questions.slice(0, 3),
+        parsedData: normalizedData,
         quota: newQuota,
         parsing: false,
         isPolling: false,
@@ -291,7 +364,7 @@ Page({
       this.setData({ progress: 50, progressText: '正在识别文字...' });
       const parseRes = await wx.cloud.callFunction({
         name: 'parseDocument',
-        data: { imageFileIDs: fileIDs, fileName: '截图_' + images.length + '张', questionCount: parseInt(this.data.questionCounts[this.data.questionCountIndex]), mode: 'ocr_images' }
+        data: { ...this.getParseOptions(), imageFileIDs: fileIDs, fileName: '截图_' + images.length + '张', mode: 'ocr_images' }
       });
 
       this.setData({ progress: 80, progressText: 'AI生成题目中...' });

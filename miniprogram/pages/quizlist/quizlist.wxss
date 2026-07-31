@@ -86,6 +86,7 @@
 .quiz-actions {
   display: flex;
   gap: 20rpx;
+  flex-wrap: wrap;
 }
 
 .action-btn {
@@ -104,6 +105,11 @@
 .delete-btn {
   background: #f5f5f5;
   color: #999;
+}
+
+.random-btn {
+  background: #FFF7E6;
+  color: #D48806;
 }
 
 .empty-tip text {

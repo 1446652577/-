@@ -8,6 +8,43 @@
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
 }
 
+.review-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: 20rpx;
+  border-radius: 16rpx;
+  background: linear-gradient(135deg, #F0F7FF 0%, #E8F4FD 100%);
+}
+
+.review-entry-title,
+.review-entry-desc {
+  display: block;
+}
+
+.review-entry-title {
+  color: #1D39C4;
+  font-size: 29rpx;
+  font-weight: 600;
+}
+
+.review-entry-desc {
+  margin-top: 6rpx;
+  color: #597EF7;
+  font-size: 23rpx;
+}
+
+.review-entry-btn {
+  flex-shrink: 0;
+  padding: 14rpx 22rpx;
+  border-radius: 28rpx;
+  background: #4A90D9;
+  color: #fff;
+  font-size: 24rpx;
+}
+
 .stat-box {
   text-align: center;
 }

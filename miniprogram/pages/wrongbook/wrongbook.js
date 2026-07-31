@@ -5,6 +5,7 @@ Page({
     wrongQuestions: [],
     reviewedCount: 0,
     masteredCount: 0,
+    reviewableCount: 0,
   },
 
   onLoad() {
@@ -41,11 +42,13 @@ Page({
 
       const reviewedCount = questions.filter(q => q.reviewed).length;
       const masteredCount = questions.filter(q => q.mastered).length;
+      const reviewableCount = questions.filter(q => !q.mastered).length;
 
       this.setData({
         wrongQuestions: questions,
         reviewedCount,
         masteredCount,
+        reviewableCount,
       });
       util.hideLoading();
     } catch (err) {
@@ -82,6 +85,18 @@ Page({
     }).then(() => {
       this.loadWrongQuestions();
     });
+  },
+
+  startWrongPractice() {
+    const questions = this.data.wrongQuestions
+      .filter(question => !question.mastered)
+      .slice(0, 20);
+    if (questions.length === 0) {
+      util.showToast('暂无待复习错题');
+      return;
+    }
+    wx.setStorageSync('wrongPracticeQuestions', questions);
+    wx.navigateTo({ url: '/pages/quiz/quiz?mode=wrong' });
   },
 
   removeWrong(e) {

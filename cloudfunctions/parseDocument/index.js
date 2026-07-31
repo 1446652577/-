@@ -18,6 +18,17 @@ function normalizeQuestionCount(value) {
   return Math.min(count, MAX_QUESTION_COUNT);
 }
 
+function normalizeGenerationOptions({ subject, difficulty, questionType } = {}) {
+  const subjects = new Set(['通用', '语文', '数学', '英语', '物理', '化学', '历史', '地理', '生物']);
+  const difficulties = new Set(['不限', '基础', '中等', '提高']);
+  const questionTypes = new Set(['自动识别', '单选题', '判断题']);
+  return {
+    subject: subjects.has(subject) ? subject : '通用',
+    difficulty: difficulties.has(difficulty) ? difficulty : '不限',
+    questionType: questionTypes.has(questionType) ? questionType : '自动识别',
+  };
+}
+
 // ===================== 腾讯云签名 =====================
 async function tencentApiCall({ service, host, action, version, region, payload, timeout = 30000 }) {
   if (!TENCENT_SECRET_ID || !TENCENT_SECRET_KEY) throw new Error('腾讯云API未配置');
@@ -144,6 +155,80 @@ async function aiParseRawText(rawText) {
       answer: (q.answer || '').toUpperCase(),
     })).filter(q => q.question.length > 3 && q.options.length >= 2);
   } catch (e) { return null; }
+}
+
+// 带学科、难度和题型约束的增强解析，旧函数保留作为兼容兜底。
+async function aiAnswerQuestionsWithContext(questions, generationOptions = {}) {
+  const options = normalizeGenerationOptions(generationOptions);
+  const targets = questions.filter(q => !q.answer || !q.explanation);
+  if (targets.length === 0) return { success: true, answered: 0, total: 0, explained: 0, error: '' };
+  if (!GLM_API_KEY) return { success: false, answered: 0, total: targets.length, explained: 0, error: '未配置AI Key' };
+
+  let answered = 0;
+  let explained = 0;
+  const batchSize = 5;
+  for (let i = 0; i < targets.length; i += batchSize) {
+    const batch = targets.slice(i, i + batchSize);
+    const prompt = `你是严谨的${options.subject}教师。请判断下面题目的正确答案，并补充简洁、可读的解题思路。
+学科：${options.subject}；难度：${options.difficulty}；题型：${options.questionType}。
+只返回JSON数组，不要Markdown，不要额外说明。index从1开始，answer必须是选项key；无法确定时answer返回空字符串。
+格式：[{"index":1,"answer":"A","explanation":"说明判断依据"}]
+
+${batch.map((q, index) => `${index + 1}. ${q.question}\n${q.options.map(o => `${o.key}. ${o.text}`).join('\n')}`).join('\n\n')}`;
+    const content = await glmChat(prompt, 30000);
+    if (!content) continue;
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) continue;
+    try {
+      const results = JSON.parse(jsonMatch[0]);
+      results.forEach(result => {
+        const target = batch[Number(result.index) - 1];
+        if (!target) return;
+        const answer = String(result.answer || '').trim().toUpperCase();
+        if (answer && target.options.some(option => option.key === answer)) {
+          target.answer = answer;
+          answered += 1;
+        }
+        const explanation = String(result.explanation || '').trim();
+        if (explanation) {
+          target.explanation = explanation;
+          explained += 1;
+        }
+      });
+    } catch (e) {
+      console.error('[glm] 解析增强结果失败:', e.message);
+    }
+  }
+  return { success: answered > 0 || explained > 0, answered, total: targets.length, explained, error: '' };
+}
+
+async function aiParseRawTextWithContext(rawText, generationOptions = {}) {
+  if (!GLM_API_KEY) return null;
+  const options = normalizeGenerationOptions(generationOptions);
+  const typeRule = options.questionType === '判断题'
+    ? '若原文没有明确选项，请生成A.对、B.错两项。'
+    : '选择题必须保留或生成至少4个选项；自动识别时以原文题型为准。';
+  const prompt = `请从下面的文字中提取或整理题目，输出标准JSON数组。学科：${options.subject}；难度：${options.difficulty}；题型偏好：${options.questionType}。
+${typeRule}
+每题包含question、options（每项包含key和text）、answer、explanation。只返回JSON，不要Markdown，不要解释。
+格式：[{"question":"题干","options":[{"key":"A","text":"选项"}],"answer":"A","explanation":"简洁解析"}]
+
+${rawText.substring(0, 6000)}`;
+  const content = await glmChat(prompt, 30000);
+  if (!content) return null;
+  const jsonMatch = content.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return null;
+  try {
+    const questions = JSON.parse(jsonMatch[0]);
+    return questions.map(q => ({
+      question: String(q.question || '').trim(),
+      options: (q.options || []).filter(o => o.key && o.text).map(o => ({ key: String(o.key).toUpperCase(), text: String(o.text).trim() })),
+      answer: String(q.answer || '').toUpperCase(),
+      explanation: String(q.explanation || '').trim(),
+    })).filter(q => q.question.length > 3 && q.options.length >= 2);
+  } catch (e) {
+    return null;
+  }
 }
 
 // ===================== 文件解析 =====================
@@ -308,13 +393,16 @@ async function processPdfBatch(cosKey, startPage, batchSize, totalPages) {
   return { texts, logs, nextPage: isEnd ? null : endPage + 1, isEnd };
 }
 
-async function createParseJob({ fileName, cosKey, totalPages, questionCount }) {
+async function createParseJob({ fileName, cosKey, totalPages, questionCount, subject, difficulty, questionType }) {
   const res = await db.collection(JOB_COLLECTION).add({
     data: {
       fileName,
       cosKey,
       totalPages,
       questionCount: normalizeQuestionCount(questionCount),
+      subject,
+      difficulty,
+      questionType,
       status: 'processing',
       processedPages: 0,
       allTexts: [],
@@ -418,8 +506,9 @@ function extractAnswers(questions, fullText) {
 
 // ===================== 主入口 =====================
 exports.main = async (event, context) => {
-  const { fileID, fileName, questionCount = 50, mode, imageFileIDs, jobId } = event;
+  const { fileID, fileName, questionCount = 50, mode, imageFileIDs, jobId, subject, difficulty, questionType } = event;
   const requestedQuestionCount = normalizeQuestionCount(questionCount);
+  const generationOptions = normalizeGenerationOptions({ subject, difficulty, questionType });
 
   try {
     // === 模式1: 查询进度 ===
@@ -472,7 +561,7 @@ exports.main = async (event, context) => {
         const fullText = allTexts.join('\n\n');
         console.log('[scan_pdf_continue] 全部完成，解析题目，文字长度:', fullText.length);
         const questions = parseQuestionsFromText(fullText).slice(0, job.questionCount);
-        const aiResult = await aiAnswerQuestions(questions);
+        const aiResult = await aiAnswerQuestionsWithContext(questions, job);
 
         await updateParseJob(jobId, { status: 'done', questions, questionCountResult: questions.length });
 
@@ -545,7 +634,7 @@ exports.main = async (event, context) => {
             });
             console.log('[parseDocument] COS上传成功:', cosKey);
 
-            const newJobId = await createParseJob({ fileName, cosKey, totalPages, questionCount });
+            const newJobId = await createParseJob({ fileName, cosKey, totalPages, questionCount, ...generationOptions });
             console.log('[parseDocument] Job创建:', newJobId);
 
             const batchResult = await processPdfBatch(cosKey, 1, 3, totalPages);
@@ -558,7 +647,7 @@ exports.main = async (event, context) => {
             if (batchResult.isEnd) {
               const fullText = batchResult.texts.join('\n\n');
               const questions = parseQuestionsFromText(fullText).slice(0, requestedQuestionCount);
-              const aiResult = await aiAnswerQuestions(questions);
+              const aiResult = await aiAnswerQuestionsWithContext(questions, generationOptions);
               await updateParseJob(newJobId, { status: 'done', questions, questionCountResult: questions.length });
               cos.deleteObject({ Bucket: COS_BUCKET, Region: COS_REGION, Key: cosKey }, () => {});
               return {
@@ -609,15 +698,15 @@ exports.main = async (event, context) => {
     console.log('[parseDocument] 解析题目数:', questions.length);
 
     if (questions.length === 0) {
-      const aiQuestions = (await aiParseRawText(extractedText))?.slice(0, requestedQuestionCount);
+      const aiQuestions = (await aiParseRawTextWithContext(extractedText, generationOptions))?.slice(0, requestedQuestionCount);
       if (aiQuestions?.length > 0) {
-        const aiResult = await aiAnswerQuestions(aiQuestions);
+        const aiResult = await aiAnswerQuestionsWithContext(aiQuestions, generationOptions);
         return { code: 0, data: { title: fileName?.replace(/\.[^.]+$/, '') || '题库', fileName, questionCount: aiQuestions.length, questions: aiQuestions, sourceType: sourceType + '_ai', isScanFile, aiAnswered: aiQuestions.filter(q => q.answer).length, aiDetail: { ...aiResult, parsedByAI: true } } };
       }
       return { code: -1, message: '未能解析到选择题格式', rawText: extractedText.substring(0, 2000) };
     }
 
-    const aiResult = await aiAnswerQuestions(questions);
+    const aiResult = await aiAnswerQuestionsWithContext(questions, generationOptions);
     return { code: 0, data: { title: fileName?.replace(/\.[^.]+$/, '') || '题库', fileName, questionCount: questions.length, questions, sourceType, isScanFile, aiAnswered: questions.filter(q => q.answer).length, aiDetail: aiResult } };
 
   } catch (err) {

@@ -59,6 +59,24 @@
           <view class="option-value">{{questionCounts[questionCountIndex]}}</view>
         </picker>
       </view>
+      <view class="option-item">
+        <text class="option-label">学科</text>
+        <picker mode="selector" range="{{subjectOptions}}" value="{{subjectIndex}}" bindchange="onSubjectChange">
+          <view class="option-value">{{subjectOptions[subjectIndex]}}</view>
+        </picker>
+      </view>
+      <view class="option-item">
+        <text class="option-label">难度</text>
+        <picker mode="selector" range="{{difficultyOptions}}" value="{{difficultyIndex}}" bindchange="onDifficultyChange">
+          <view class="option-value">{{difficultyOptions[difficultyIndex]}}</view>
+        </picker>
+      </view>
+      <view class="option-item">
+        <text class="option-label">题型</text>
+        <picker mode="selector" range="{{questionTypeOptions}}" value="{{questionTypeIndex}}" bindchange="onQuestionTypeChange">
+          <view class="option-value">{{questionTypeOptions[questionTypeIndex]}}</view>
+        </picker>
+      </view>
     </view>
     <button class="btn-primary" bindtap="startParse" disabled="{{parsing}}">
       {{parsing ? '识别中...' : '开始识别（消耗1次）'}}
@@ -84,6 +102,24 @@
         <text class="option-label">题目数量</text>
         <picker mode="selector" range="{{questionCounts}}" value="{{questionCountIndex}}" bindchange="onCountChange">
           <view class="option-value">{{questionCounts[questionCountIndex]}}</view>
+        </picker>
+      </view>
+      <view class="option-item">
+        <text class="option-label">学科</text>
+        <picker mode="selector" range="{{subjectOptions}}" value="{{subjectIndex}}" bindchange="onSubjectChange">
+          <view class="option-value">{{subjectOptions[subjectIndex]}}</view>
+        </picker>
+      </view>
+      <view class="option-item">
+        <text class="option-label">难度</text>
+        <picker mode="selector" range="{{difficultyOptions}}" value="{{difficultyIndex}}" bindchange="onDifficultyChange">
+          <view class="option-value">{{difficultyOptions[difficultyIndex]}}</view>
+        </picker>
+      </view>
+      <view class="option-item">
+        <text class="option-label">题型</text>
+        <picker mode="selector" range="{{questionTypeOptions}}" value="{{questionTypeIndex}}" bindchange="onQuestionTypeChange">
+          <view class="option-value">{{questionTypeOptions[questionTypeIndex]}}</view>
         </picker>
       </view>
     </view>
@@ -112,6 +148,11 @@
       <text class="title">识别结果预览</text>
       <text class="preview-count">共 {{parsedData.questionCount}} 题</text>
     </view>
+    <view class="quality-summary" wx:if="{{parsedData.qualitySummary}}">
+      <text class="quality-summary-title">生成质量检查</text>
+      <text class="quality-ready">可直接使用 {{parsedData.qualitySummary.ready}} 题</text>
+      <text class="quality-warning" wx:if="{{parsedData.qualitySummary.warning > 0}}">建议检查 {{parsedData.qualitySummary.warning}} 题</text>
+    </view>
     
     <!-- AI答题状态 -->
     <view class="ai-status-bar" wx:if="{{parsedData.aiDetail && parsedData.aiDetail.total > 0}}">
@@ -139,6 +180,9 @@
         <view class="preview-explanation" wx:if="{{item.explanation}}">
           <text class="preview-explanation-label">解析</text>
           <text class="preview-explanation-text">{{item.explanation}}</text>
+        </view>
+        <view class="preview-quality-warning" wx:if="{{item.qualityIssue}}">
+          <text>⚠️ {{item.qualityIssue}}</text>
         </view>
       </view>
     </view>

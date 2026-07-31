@@ -70,6 +70,11 @@ Page({
     wx.navigateTo({ url: `/pages/quiz/quiz?quizId=${id}` });
   },
 
+  startRandomPractice(e) {
+    const id = e.currentTarget.dataset.id;
+    wx.navigateTo({ url: `/pages/quiz/quiz?quizId=${id}&mode=random` });
+  },
+
   deleteQuiz(e) {
     const id = e.currentTarget.dataset.id;
     wx.showModal({
