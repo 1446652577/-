@@ -50,11 +50,11 @@ Page({
       }
 
       const data = result.data || {};
-      const questions = (Array.isArray(data.questions) ? data.questions : []).map(q => ({
+      const questions = this.sortQuestionsBySourceOrder((Array.isArray(data.questions) ? data.questions : []).map(q => ({
         ...q,
         options: this.parseOptions(q.options),
         questionParts: this.buildQuestionParts(q.question),
-      }));
+      })));
       if (questions.length === 0) throw new Error('题库暂无题目');
 
       const preparedQuestions = practiceMode === 'random'
@@ -83,12 +83,27 @@ Page({
     return options.map((text, i) => ({ key: keys[i] || String(i), text }));
   },
 
+  sortQuestionsBySourceOrder(questions) {
+    return (Array.isArray(questions) ? questions : [])
+      .map((question, index) => {
+        const sourceOrder = Number(question.sourceOrder || question.questionIndex);
+        return {
+          ...question,
+          _sourceOrder: Number.isFinite(sourceOrder) && sourceOrder >= 0 ? sourceOrder : index,
+          _sourceIndex: index,
+        };
+      })
+      .sort((a, b) => a._sourceOrder - b._sourceOrder || a._sourceIndex - b._sourceIndex)
+      .map(({ _sourceOrder, _sourceIndex, ...question }) => question);
+  },
+
   buildQuestionParts(question) {
     const raw = String(question || '').replace(/\r\n/g, '\n');
     const blankToken = '__QUIZ_BLANK__';
     let normalized = raw
       .replace(/_{2,}|＿{2,}|…{2,}|\.{4,}|（\s*）|\(\s*\)|【\s*】/g, blankToken)
-      .replace(/(?:画|划)\s*横线\s*部分/g, blankToken);
+      .replace(/(?:画|划)\s*横线\s*部分/g, blankToken)
+      .replace(/[［【[(（]\s*(?:横线|下划线|空格|填空)\s*[］】\])）]/g, blankToken);
 
     if (normalized === raw && /填入.{0,10}(横线|下划线|空格|括号)/.test(raw)) {
       normalized = raw.replace(/横线部分|下划线部分|空格部分|括号内/g, blankToken);
@@ -128,11 +143,11 @@ Page({
       setTimeout(() => wx.navigateBack(), 600);
       return;
     }
-    const shuffledQuestions = this.shuffleQuestions(questions);
+    const orderedQuestions = this.sortQuestionsBySourceOrder(questions);
     this.setData({
       quizTitle: '错题复习',
-      questions: shuffledQuestions,
-      currentQuestion: shuffledQuestions[0],
+      questions: orderedQuestions,
+      currentQuestion: orderedQuestions[0],
     });
   },
 

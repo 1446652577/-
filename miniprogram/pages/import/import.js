@@ -70,16 +70,23 @@ Page({
 
   async callParseService(data, retry = true) {
     const serviceUrl = app.globalData.parseServiceUrl || '';
-    if (!serviceUrl) return wx.cloud.callFunction({ name: 'parseDocument', data });
+    if (!serviceUrl) {
+      console.warn('[parse] 未配置 parseServiceUrl，回退云函数 parseDocument');
+      return wx.cloud.callFunction({ name: 'parseDocument', data });
+    }
 
     let auth = wx.getStorageSync('parseAuth') || {};
     if ((!auth.token || !auth.timestamp) && retry) {
       await this.refreshParseAuth();
       auth = wx.getStorageSync('parseAuth') || {};
     }
-    if (!auth.token || !auth.timestamp) return wx.cloud.callFunction({ name: 'parseDocument', data });
+    if (!auth.token || !auth.timestamp) {
+      console.warn('[parse] 缺少 parseAuth，请检查 PARSE_RUN_TOKEN_SECRET，回退云函数 parseDocument');
+      return wx.cloud.callFunction({ name: 'parseDocument', data });
+    }
 
     const requestData = { ...data, openid: wx.getStorageSync('openid') || '' };
+    console.info('[parse] 使用 CloudBase Run', data.mode || 'parse');
     return new Promise((resolve, reject) => {
       wx.request({
         url: serviceUrl,
@@ -192,11 +199,16 @@ Page({
         options,
         answer,
         explanation: String(item.explanation || '').trim(),
+        sourceOrder: Number.isFinite(Number(item.sourceOrder)) && Number(item.sourceOrder) > 0
+          ? Number(item.sourceOrder)
+          : index + 1,
         qualityIssue: issues.join('、'),
         qualityLevel: issues.length === 0 ? '可直接使用' : '建议检查',
         qualityIndex: index,
       };
-    }).filter(item => item.question.length > 0);
+    }).filter(item => item.question.length > 0)
+      .sort((a, b) => a.sourceOrder - b.sourceOrder || a.qualityIndex - b.qualityIndex)
+      .map((item, index) => ({ ...item, qualityIndex: index }));
     return {
       questions: normalized,
       summary: { total: normalized.length, ready: readyCount, warning: warningCount },
@@ -433,7 +445,20 @@ Page({
       const openid = wx.getStorageSync('openid');
       const { questions, title } = this.data.parsedData;
       const quizRes = await db.collection('quizzes').add({ data: { title: title || this.data.fileName.replace(/\.[^.]+$/, ''), openid, questionCount: questions.length, createTime: db.serverDate(), fileName: this.data.fileName }});
-      for (const q of questions) { await db.collection('questions').add({ data: { quizId: quizRes._id, openid, question: q.question, options: q.options, answer: q.answer, explanation: q.explanation || '', createTime: db.serverDate() }}); }
+      for (let index = 0; index < questions.length; index += 1) {
+        const q = questions[index];
+        await db.collection('questions').add({ data: {
+          quizId: quizRes._id,
+          openid,
+          question: q.question,
+          options: q.options,
+          answer: q.answer,
+          explanation: q.explanation || '',
+          questionIndex: index,
+          sourceOrder: Number(q.sourceOrder) || index + 1,
+          createTime: db.serverDate(),
+        }});
+      }
       wx.showToast({ title: '保存成功！', icon: 'success' });
       setTimeout(() => { wx.switchTab({ url: '/pages/quizlist/quizlist' }); }, 1500);
     } catch (err) { wx.showToast({ title: '保存失败', icon: 'none' }); } finally { wx.hideLoading(); }

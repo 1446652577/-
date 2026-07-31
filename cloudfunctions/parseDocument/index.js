@@ -221,18 +221,21 @@ ${typeRule}
 格式：[{"question":"题干","options":[{"key":"A","text":"选项"}],"answer":"A","explanation":"简短解析"}]
 
 ${rawText.substring(0, 6000)}`;
-  const content = await glmChat(prompt, 30000, 2400);
+  const strictPrompt = `${prompt}
+请严格遵守：题目必须按照原文从前到后的顺序输出；每题增加 sourceOrder 字段，从 1 开始递增。question 必须保留完整题干，不能只返回选项或省略题干中的句子。原文出现横线、下划线、括号空格或“画横线部分”时，在 question 的相同位置保留为 ____；无法识别的横线内容不要猜测或杜撰。`;
+  const content = await glmChat(strictPrompt, 30000, 2400);
   if (!content) return null;
   const jsonMatch = content.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return null;
   try {
     const questions = JSON.parse(jsonMatch[0]);
-    return questions.map(q => ({
+    return sortQuestionsBySourceOrder(questions.map((q, index) => ({
       question: String(q.question || '').trim(),
       options: (q.options || []).filter(o => o.key && o.text).map(o => ({ key: String(o.key).toUpperCase(), text: String(o.text).trim() })),
       answer: String(q.answer || '').toUpperCase(),
       explanation: String(q.explanation || '').trim().slice(0, 120),
-    })).filter(q => q.question.length > 3 && q.options.length >= 2);
+      sourceOrder: q.sourceOrder || q.order || index + 1,
+    })).filter(q => q.question.length > 3 && q.options.length >= 2));
   } catch (e) {
     return null;
   }
@@ -443,10 +446,25 @@ async function removeParseJob(jobId) {
 }
 
 // ===================== 题目解析 =====================
+function sortQuestionsBySourceOrder(questions) {
+  return (Array.isArray(questions) ? questions : [])
+    .map((question, index) => {
+      const parsedOrder = Number(question.sourceOrder || question.order);
+      return {
+        ...question,
+        sourceOrder: Number.isFinite(parsedOrder) && parsedOrder > 0 ? parsedOrder : index + 1,
+        _sourceIndex: index,
+      };
+    })
+    .sort((a, b) => a.sourceOrder - b.sourceOrder || a._sourceIndex - b._sourceIndex)
+    .map(({ _sourceIndex, ...question }) => question);
+}
+
 function parseQuestionsFromText(text) {
   const questions = [];
   const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(l => l.trim()).filter(l => l.length > 0);
   let currentQuestion = null;
+  let nextSourceOrder = 1;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -463,7 +481,7 @@ function parseQuestionsFromText(text) {
         questions.push(currentQuestion);
       }
       const qText = line.replace(/^\d+[\.．、\s:]*/, '').replace(/^[（(]\d+[)）][\.．、\s:]*/, '').replace(/^第\d+题[\.．、\s:]*/, '');
-      currentQuestion = { question: qText, options: [], answer: '', explanation: '' };
+      currentQuestion = { question: qText, options: [], answer: '', explanation: '', sourceOrder: nextSourceOrder++ };
     } else if (optionMatch && currentQuestion) {
       const key = optionMatch[1].toUpperCase();
       const txt = optionMatch[2].trim();
@@ -475,7 +493,7 @@ function parseQuestionsFromText(text) {
     } else if (!currentQuestion && line.length > 3) {
       const nextLine = lines[i + 1] || '';
       if (/^[(（]?[A-Da-d][)）]?[\.．、\s:：]/.test(nextLine)) {
-        currentQuestion = { question: line, options: [], answer: '', explanation: '' };
+        currentQuestion = { question: line, options: [], answer: '', explanation: '', sourceOrder: nextSourceOrder++ };
       }
     }
   }
@@ -485,7 +503,7 @@ function parseQuestionsFromText(text) {
   }
 
   extractAnswers(questions, text);
-  return questions.filter(q => q.question.length > 3 && q.options.length >= 2);
+  return sortQuestionsBySourceOrder(questions.filter(q => q.question.length > 3 && q.options.length >= 2));
 }
 
 function extractAnswers(questions, fullText) {
