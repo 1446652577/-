@@ -44,6 +44,17 @@ Page({
     this.stopPolling();
   },
 
+  async cleanupUploadedFiles() {
+    const fileList = [...new Set(this._uploadedFileIDs || [])].filter(Boolean);
+    if (fileList.length === 0) return;
+    this._uploadedFileIDs = [];
+    try {
+      await wx.cloud.deleteFile({ fileList });
+    } catch (err) {
+      console.warn('[cleanupUploadedFiles] 清理上传文件失败:', err);
+    }
+  },
+
   chooseFile() {
     this.setData({ errorMsg: '', isScanFile: false });
     const quota = wx.getStorageSync('userQuota') || 0;
@@ -157,6 +168,7 @@ Page({
       const ext = this.data.fileName.substring(this.data.fileName.lastIndexOf('.'));
       const cloudPath = 'uploads/' + Date.now() + ext;
       const uploadRes = await wx.cloud.uploadFile({ cloudPath, filePath: this.data.filePath });
+      this._uploadedFileIDs = [uploadRes.fileID];
       this.setData({ progress: 30, progressText: isPdf ? '扫描版PDF转图片识别中...' : '解析中...' });
 
       const parseRes = await wx.cloud.callFunction({
@@ -170,8 +182,9 @@ Page({
 
       if (parseRes.result && parseRes.result.code === 0) {
         const data = parseRes.result.data;
+        await this.cleanupUploadedFiles();
 
-        // ===== 扫描版PDF分批处理：启动轮询 =====
+          // ===== 扫描版PDF分批处理：启动轮询 =====
         if (data.status === 'processing') {
           this.setData({
             jobId: data.jobId,
@@ -190,6 +203,7 @@ Page({
         throw new Error((parseRes.result && parseRes.result.message) || '解析失败');
       }
     } catch (err) {
+      await this.cleanupUploadedFiles();
       const msg = err.message || err.errMsg || '未知错误';
       this.setData({ parsing: false, progress: 0, errorMsg: msg, isPolling: false });
       wx.showToast({ title: msg, icon: 'none' });
@@ -207,13 +221,13 @@ Page({
     if (!this.data.isPolling || !this.data.jobId) return;
     const timer = setTimeout(() => {
       this.pollJobStatus().finally(() => this.schedulePolling());
-    }, 3000);
+    }, 4000);
     this.setData({ pollTimer: timer });
   },
 
   stopPolling() {
     if (this.data.pollTimer) {
-      clearInterval(this.data.pollTimer);
+      clearTimeout(this.data.pollTimer);
       this.setData({ pollTimer: null, isPolling: false });
     }
   },
@@ -223,26 +237,19 @@ Page({
     if (!jobId) return;
 
     try {
-      // 查询当前进度
-      const statusRes = await wx.cloud.callFunction({
+      // 继续处理接口同时返回进度，避免每轮先查询再处理造成双倍云函数调用。
+      const continueRes = await wx.cloud.callFunction({
         name: 'parseDocument',
-        data: { mode: 'scan_pdf_status', jobId }
+        data: { mode: 'scan_pdf_continue', jobId }
       });
 
-      if (statusRes.result.code !== 0) {
+      if (continueRes.result.code !== 0) {
         this.stopPolling();
-        this.setData({ parsing: false, progress: 0, errorMsg: statusRes.result.message || '查询失败' });
+        this.setData({ parsing: false, progress: 0, errorMsg: continueRes.result.message || '处理失败' });
         return;
       }
 
-      const job = statusRes.result.data;
-      const percent = job.totalPages > 0 ? Math.round((job.processedPages / job.totalPages) * 100) : 0;
-      this.setData({
-        progressText: `正在识别... ${job.processedPages}/${job.totalPages} 页`,
-        progress: 30 + Math.round(percent * 0.6) // 30-90% 区间
-      });
-
-      // 已完成
+      const job = continueRes.result.data || {};
       if (job.status === 'done') {
         this.stopPolling();
         this.setData({ progress: 90, progressText: '处理结果...' });
@@ -250,33 +257,18 @@ Page({
         return;
       }
 
-      // 失败
       if (job.status === 'failed') {
         this.stopPolling();
         this.setData({ parsing: false, progress: 0, errorMsg: job.error || '处理失败' });
         return;
       }
 
-      // 还在处理中，触发下一批
-      if (job.status === 'processing') {
-        const continueRes = await wx.cloud.callFunction({
-          name: 'parseDocument',
-          data: { mode: 'scan_pdf_continue', jobId }
+      if (job.totalPages > 0) {
+        const percent = Math.round((job.processedPages / job.totalPages) * 100);
+        this.setData({
+          progressText: `正在识别... ${job.processedPages}/${job.totalPages} 页`,
+          progress: 30 + Math.round(percent * 0.6)
         });
-        console.log('[poll] continue:', continueRes.result);
-
-        if (continueRes.result.code !== 0) {
-          this.stopPolling();
-          this.setData({ parsing: false, progress: 0, errorMsg: continueRes.result.message || '处理失败' });
-          return;
-        }
-
-        const continueData = continueRes.result.data;
-        if (continueData.status === 'done') {
-          this.stopPolling();
-          this.setData({ progress: 90, progressText: '处理结果...' });
-          await this.handleParseComplete(continueData);
-        }
       }
     } catch (err) {
       console.error('[poll] 异常:', err);
@@ -360,6 +352,7 @@ Page({
         fileIDs.push(res.fileID);
         this.setData({ progress: Math.floor(10 + (i + 1) / images.length * 30), progressText: '上传图片（' + (i + 1) + '/' + images.length + '）...' });
       }
+      this._uploadedFileIDs = fileIDs;
 
       this.setData({ progress: 50, progressText: '正在识别文字...' });
       const parseRes = await wx.cloud.callFunction({
@@ -370,11 +363,13 @@ Page({
       this.setData({ progress: 80, progressText: 'AI生成题目中...' });
       if (parseRes.result && parseRes.result.code === 0) {
         const data = parseRes.result.data;
+        await this.cleanupUploadedFiles();
         await this.handleParseComplete(data);
       } else {
         throw new Error((parseRes.result && parseRes.result.message) || '识别失败');
       }
     } catch (err) {
+      await this.cleanupUploadedFiles();
       const msg = err.message || err.errMsg || '未知错误';
       this.setData({ parsing: false, progress: 0, errorMsg: msg });
       wx.showToast({ title: msg, icon: 'none' });

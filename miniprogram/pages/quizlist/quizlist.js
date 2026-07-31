@@ -87,10 +87,13 @@ Page({
           // 删除题库
           db.collection('quizzes').doc(id).remove().then(() => {
             // 删除关联题目
-            db.collection('questions').where({ quizId: id }).remove().then(() => {
-              util.showToast('删除成功');
-              this.loadQuizzes();
-            });
+            return db.collection('questions').where({ quizId: id }).remove();
+          }).then(() => {
+            // 同步删除该题库产生的错题，避免数据库长期堆积
+            return db.collection('wrongBooks').where({ quizId: id }).remove();
+          }).then(() => {
+            util.showToast('删除成功');
+            this.loadQuizzes();
           }).catch(() => {
             util.showToast('删除失败');
           }).finally(() => {

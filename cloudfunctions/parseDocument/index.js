@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const JOB_COLLECTION = 'parse_jobs';
 const DEFAULT_QUESTION_COUNT = 50;
 const MAX_QUESTION_COUNT = 100;
+const PDF_BATCH_SIZE = Math.min(6, Math.max(3, Number.parseInt(process.env.PDF_BATCH_SIZE || '5', 10)));
 
 function normalizeQuestionCount(value) {
   const count = Number.parseInt(value, 10);
@@ -433,6 +434,14 @@ async function getParseJob(jobId) {
   return res.data;
 }
 
+async function removeParseJob(jobId) {
+  try {
+    await db.collection(JOB_COLLECTION).doc(jobId).remove();
+  } catch (err) {
+    console.warn('[parseDocument] 清理解析任务失败:', jobId, err.message);
+  }
+}
+
 // ===================== 题目解析 =====================
 function parseQuestionsFromText(text) {
   const questions = [];
@@ -521,7 +530,7 @@ exports.main = async (event, context) => {
     if (mode === 'scan_pdf_status' && jobId) {
       const job = await getParseJob(jobId);
       if (!job) return { code: -1, message: '任务不存在' };
-      return {
+      const result = {
         code: 0,
         data: {
           jobId, status: job.status, fileName: job.fileName, totalPages: job.totalPages,
@@ -530,6 +539,8 @@ exports.main = async (event, context) => {
           aiAnswered: (job.questions || []).filter(q => q.answer).length, error: job.error
         }
       };
+      if (job.status === 'done') await removeParseJob(jobId);
+      return result;
     }
 
     // === 模式2: 继续处理扫描版PDF ===
@@ -537,7 +548,7 @@ exports.main = async (event, context) => {
       const job = await getParseJob(jobId);
       if (!job) return { code: -1, message: '任务不存在' };
       if (job.status === 'done') {
-        return {
+        const result = {
           code: 0,
           data: {
             jobId, status: 'done', title: job.fileName?.replace(/\.[^.]+$/, '') || '题库',
@@ -547,11 +558,13 @@ exports.main = async (event, context) => {
             aiDetail: { success: true, answered: (job.questions || []).filter(q => q.answer).length, total: job.questions?.length || 0 }
           }
         };
+        await removeParseJob(jobId);
+        return result;
       }
       if (job.status === 'failed') return { code: -1, message: job.error || '处理失败' };
 
       const nextPage = job.processedPages + 1;
-      const batchSize = 3;
+      const batchSize = PDF_BATCH_SIZE;
       console.log('[scan_pdf_continue] 继续处理', job.fileName, '从第', nextPage, '页');
 
       const batchResult = await processPdfBatch(job.cosKey, nextPage, batchSize, job.totalPages);
@@ -570,6 +583,7 @@ exports.main = async (event, context) => {
         const aiResult = await aiAnswerQuestionsWithContext(questions, job);
 
         await updateParseJob(jobId, { status: 'done', questions, questionCountResult: questions.length });
+        await removeParseJob(jobId);
 
         try {
           const COS = require('cos-nodejs-sdk-v5');
@@ -643,8 +657,9 @@ exports.main = async (event, context) => {
             const newJobId = await createParseJob({ fileName, cosKey, totalPages, questionCount, ...generationOptions });
             console.log('[parseDocument] Job创建:', newJobId);
 
-            const batchResult = await processPdfBatch(cosKey, 1, 3, totalPages);
-            const newProcessed = batchResult.isEnd ? totalPages : 3;
+            const initialBatchSize = PDF_BATCH_SIZE;
+            const batchResult = await processPdfBatch(cosKey, 1, initialBatchSize, totalPages);
+            const newProcessed = batchResult.isEnd ? totalPages : initialBatchSize;
             await updateParseJob(newJobId, {
               processedPages: newProcessed, allTexts: batchResult.texts,
               status: batchResult.isEnd ? 'parsing' : 'processing'
@@ -655,6 +670,7 @@ exports.main = async (event, context) => {
               const questions = parseQuestionsFromText(fullText).slice(0, requestedQuestionCount);
               const aiResult = await aiAnswerQuestionsWithContext(questions, generationOptions);
               await updateParseJob(newJobId, { status: 'done', questions, questionCountResult: questions.length });
+              await removeParseJob(newJobId);
               cos.deleteObject({ Bucket: COS_BUCKET, Region: COS_REGION, Key: cosKey }, () => {});
               return {
                 code: 0,
