@@ -5,6 +5,8 @@ const db = cloud.database();
 const TENCENT_SECRET_ID = process.env.TENCENT_SECRET_ID || '';
 const TENCENT_SECRET_KEY = process.env.TENCENT_SECRET_KEY || '';
 const GLM_API_KEY = process.env.ZHIPU_API_KEY || '';
+const GLM_MODEL = process.env.GLM_MODEL || 'glm-4-flash';
+const GLM_MAX_TOKENS = Math.max(256, Number.parseInt(process.env.GLM_MAX_TOKENS || '1024', 10));
 const axios = require('axios');
 const crypto = require('crypto');
 
@@ -69,22 +71,26 @@ async function ocrImageBuffer(imageBuffer) {
 }
 
 async function ocrImagesConcurrent(buffers, concurrency = 5) {
-  const results = [];
-  for (let i = 0; i < buffers.length; i += concurrency) {
-    const batch = buffers.slice(i, i + concurrency);
-    const batchResults = await Promise.all(batch.map(async (buf, idx) => {
-      const realIdx = i + idx;
+  const uniqueBuffers = [];
+  const bufferKeys = buffers.map(buf => {
+    const key = crypto.createHash('sha1').update(buf).digest('hex');
+    if (!uniqueBuffers.some(item => item.key === key)) uniqueBuffers.push({ key, buf });
+    return key;
+  });
+  const textByKey = new Map();
+  for (let i = 0; i < uniqueBuffers.length; i += concurrency) {
+    const batch = uniqueBuffers.slice(i, i + concurrency);
+    const batchResults = await Promise.all(batch.map(async item => {
       try {
-        const text = await ocrImageBuffer(buf);
-        return text;
+        return { key: item.key, text: await ocrImageBuffer(item.buf) };
       } catch (e) {
-        console.error('[OCR] 第', realIdx + 1, '张失败:', e.message);
-        return '';
+        console.error('[OCR] 图片识别失败:', e.message);
+        return { key: item.key, text: '' };
       }
     }));
-    results.push(...batchResults);
+    batchResults.forEach(item => textByKey.set(item.key, item.text));
   }
-  return results.filter(t => t.trim().length > 0);
+  return bufferKeys.map(key => textByKey.get(key) || '').filter(text => text.trim().length > 0);
 }
 
 async function ocrImages(fileIDs) {
@@ -97,12 +103,12 @@ async function ocrImages(fileIDs) {
 }
 
 // ===================== AI =====================
-async function glmChat(prompt, timeout = 20000) {
+async function glmChat(prompt, timeout = 20000, maxTokens = GLM_MAX_TOKENS) {
   if (!GLM_API_KEY) return null;
   try {
     const response = await axios.post(
       'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-      { model: 'glm-4-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.1 },
+      { model: GLM_MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0.1, max_tokens: maxTokens },
       { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GLM_API_KEY}` }, timeout }
     );
     return response.data?.choices?.[0]?.message?.content || null;
@@ -160,22 +166,22 @@ async function aiParseRawText(rawText) {
 // 带学科、难度和题型约束的增强解析，旧函数保留作为兼容兜底。
 async function aiAnswerQuestionsWithContext(questions, generationOptions = {}) {
   const options = normalizeGenerationOptions(generationOptions);
-  const targets = questions.filter(q => !q.answer || !q.explanation);
+  const targets = questions.filter(q => !q.answer || q.answer.trim() === '' || !q.explanation);
   if (targets.length === 0) return { success: true, answered: 0, total: 0, explained: 0, error: '' };
   if (!GLM_API_KEY) return { success: false, answered: 0, total: targets.length, explained: 0, error: '未配置AI Key' };
 
   let answered = 0;
   let explained = 0;
-  const batchSize = 5;
+  const batchSize = 10;
   for (let i = 0; i < targets.length; i += batchSize) {
     const batch = targets.slice(i, i + batchSize);
-    const prompt = `你是严谨的${options.subject}教师。请判断下面题目的正确答案，并补充简洁、可读的解题思路。
+    const prompt = `你是严谨的${options.subject}教师。请判断下面选择题的正确答案，并补充不超过30字的简短解析。
 学科：${options.subject}；难度：${options.difficulty}；题型：${options.questionType}。
 只返回JSON数组，不要Markdown，不要额外说明。index从1开始，answer必须是选项key；无法确定时answer返回空字符串。
-格式：[{"index":1,"answer":"A","explanation":"说明判断依据"}]
+格式：[{"index":1,"answer":"A","explanation":"简短依据"}]
 
 ${batch.map((q, index) => `${index + 1}. ${q.question}\n${q.options.map(o => `${o.key}. ${o.text}`).join('\n')}`).join('\n\n')}`;
-    const content = await glmChat(prompt, 30000);
+    const content = await glmChat(prompt, 30000, 1200);
     if (!content) continue;
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (!jsonMatch) continue;
@@ -189,7 +195,7 @@ ${batch.map((q, index) => `${index + 1}. ${q.question}\n${q.options.map(o => `${
           target.answer = answer;
           answered += 1;
         }
-        const explanation = String(result.explanation || '').trim();
+        const explanation = String(result.explanation || '').trim().slice(0, 120);
         if (explanation) {
           target.explanation = explanation;
           explained += 1;
@@ -210,11 +216,11 @@ async function aiParseRawTextWithContext(rawText, generationOptions = {}) {
     : '选择题必须保留或生成至少4个选项；自动识别时以原文题型为准。';
   const prompt = `请从下面的文字中提取或整理题目，输出标准JSON数组。学科：${options.subject}；难度：${options.difficulty}；题型偏好：${options.questionType}。
 ${typeRule}
-每题包含question、options（每项包含key和text）、answer、explanation。只返回JSON，不要Markdown，不要解释。
-格式：[{"question":"题干","options":[{"key":"A","text":"选项"}],"answer":"A","explanation":"简洁解析"}]
+每题包含question、options（每项包含key和text）、answer、explanation（不超过30字）。只返回JSON，不要Markdown，不要额外说明。
+格式：[{"question":"题干","options":[{"key":"A","text":"选项"}],"answer":"A","explanation":"简短解析"}]
 
 ${rawText.substring(0, 6000)}`;
-  const content = await glmChat(prompt, 30000);
+  const content = await glmChat(prompt, 30000, 2400);
   if (!content) return null;
   const jsonMatch = content.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return null;
@@ -224,7 +230,7 @@ ${rawText.substring(0, 6000)}`;
       question: String(q.question || '').trim(),
       options: (q.options || []).filter(o => o.key && o.text).map(o => ({ key: String(o.key).toUpperCase(), text: String(o.text).trim() })),
       answer: String(q.answer || '').toUpperCase(),
-      explanation: String(q.explanation || '').trim(),
+      explanation: String(q.explanation || '').trim().slice(0, 120),
     })).filter(q => q.question.length > 3 && q.options.length >= 2);
   } catch (e) {
     return null;
