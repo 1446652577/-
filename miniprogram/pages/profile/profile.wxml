@@ -1,0 +1,49 @@
+<view class="container">
+  <view class="profile-header">
+    <view class="avatar-box">
+      <open-data type="userAvatarUrl" class="avatar"></open-data>
+    </view>
+    <open-data type="userNickName" class="nickname"></open-data>
+  </view>
+
+  <view class="card quota-card">
+    <view class="quota-header">
+      <text class="title">识别额度</text>
+      <text class="quota-desc">每次导入文档消耗1次</text>
+    </view>
+    <view class="quota-display">
+      <view class="quota-circle">
+        <text class="quota-num">{{quota}}</text>
+        <text class="quota-unit">次</text>
+      </view>
+    </view>
+    <button class="btn-success" bindtap="goGetQuota">
+      📺 看广告获取额度
+    </button>
+    <view class="quota-rules">
+      <text>• 每日首次登录赠送 1 次</text>
+      <text>• 观看30秒广告获取 3 次</text>
+      <text>• 每次导入消耗 1 次额度</text>
+    </view>
+  </view>
+
+  <view class="card menu-card">
+    <view class="menu-item" bindtap="goToWrongBook">
+      <text class="menu-icon">❌</text>
+      <text class="menu-text">错题集</text>
+      <text class="menu-arrow">></text>
+    </view>
+    <view class="menu-item" bindtap="goToQuizList">
+      <text class="menu-icon">📝</text>
+      <text class="menu-text">我的题库</text>
+      <text class="menu-arrow">></text>
+    </view>
+    <view class="menu-item" bindtap="clearCache">
+      <text class="menu-icon">🧹</text>
+      <text class="menu-text">清除缓存</text>
+      <text class="menu-arrow">></text>
+    </view>
+  </view>
+
+  <view class="version">识图刷题 v1.0.0</view>
+</view>

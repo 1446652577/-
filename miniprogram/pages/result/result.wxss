@@ -1,0 +1,91 @@
+.result-card {
+  background: linear-gradient(135deg, #4A90D9 0%, #6BA5E7 100%);
+  border-radius: 20rpx;
+  padding: 50rpx 40rpx;
+  text-align: center;
+  color: #fff;
+  margin-bottom: 20rpx;
+}
+
+.result-icon {
+  font-size: 80rpx;
+  margin-bottom: 16rpx;
+}
+
+.result-title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: bold;
+  margin-bottom: 30rpx;
+}
+
+.accuracy-ring {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 50%;
+  border: 8rpx solid rgba(255,255,255,0.3);
+  margin-bottom: 30rpx;
+}
+
+.accuracy-num {
+  font-size: 56rpx;
+  font-weight: bold;
+}
+
+.accuracy-label {
+  font-size: 24rpx;
+  opacity: 0.8;
+}
+
+.result-stats {
+  display: flex;
+  justify-content: space-around;
+}
+
+.res-stat {
+  text-align: center;
+}
+
+.res-num {
+  display: block;
+  font-size: 40rpx;
+  font-weight: bold;
+}
+
+.res-num.correct {
+  color: #90EE90;
+}
+
+.res-num.wrong {
+  color: #FFB6C1;
+}
+
+.res-label {
+  display: block;
+  font-size: 24rpx;
+  opacity: 0.8;
+  margin-top: 4rpx;
+}
+
+.tip-card {
+  text-align: center;
+}
+
+.tip-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.tip-text {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.6;
+}

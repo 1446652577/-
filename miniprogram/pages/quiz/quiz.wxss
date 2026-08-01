@@ -1,0 +1,380 @@
+.quiz-container {
+  padding-bottom: 140rpx;
+}
+
+.quiz-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.progress-ring {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4A90D9, #6BA5E7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+}
+
+.progress-text {
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+
+.quiz-info {
+  flex: 1;
+}
+
+.question-map-trigger {
+  flex-shrink: 0;
+  padding: 14rpx 20rpx;
+  border-radius: 28rpx;
+  color: #4A90D9;
+  background: #E8F4FD;
+  font-size: 24rpx;
+}
+
+.quiz-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.correct-count {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.question-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.question-number {
+  font-size: 24rpx;
+  color: #4A90D9;
+  font-weight: bold;
+}
+
+.question-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.favorite-btn {
+  color: #999;
+  font-size: 24rpx;
+  padding: 8rpx 14rpx;
+  border-radius: 22rpx;
+  background: #F5F5F5;
+}
+
+.favorite-btn.active {
+  color: #D48806;
+  background: #FFF7E6;
+}
+
+.question-text {
+  font-size: 34rpx;
+  color: #333;
+  line-height: 1.65;
+  margin-bottom: 30rpx;
+  font-weight: 500;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.question-blank {
+  display: inline-block;
+  color: #222;
+  font-size: 30rpx;
+  font-weight: bold;
+  letter-spacing: 3rpx;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.options-list {
+  margin-bottom: 20rpx;
+}
+
+.option-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 24rpx 20rpx;
+  margin-bottom: 16rpx;
+  border-radius: 12rpx;
+  background: #F8F9FA;
+  border: 2rpx solid transparent;
+  transition: all 0.2s;
+}
+
+.option-item:active {
+  background: #E8F4FD;
+}
+
+.option-item.selected {
+  border-color: #4A90D9;
+  background: #E8F4FD;
+}
+
+.option-item.correct {
+  border-color: #52C41A;
+  background: #E6F7ED;
+}
+
+.option-item.wrong {
+  border-color: #FF4D4F;
+  background: #FFF2F0;
+}
+
+.option-key {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #E8E8E8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  color: #666;
+  margin-right: 20rpx;
+  margin-top: 2rpx;
+  flex-shrink: 0;
+}
+
+.option-item.selected .option-key {
+  background: #4A90D9;
+  color: #fff;
+}
+
+.option-item.correct .option-key {
+  background: #52C41A;
+  color: #fff;
+}
+
+.option-item.wrong .option-key {
+  background: #FF4D4F;
+  color: #fff;
+}
+
+.option-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.6;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.option-result {
+  font-size: 36rpx;
+  margin-left: 16rpx;
+}
+
+.explanation-card {
+  margin-top: 24rpx;
+  padding: 24rpx;
+  background: #FFFBE6;
+  border-radius: 12rpx;
+  border: 1rpx solid #FFE58F;
+}
+
+.explanation-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  margin-bottom: 16rpx;
+}
+
+.explanation-content {
+  margin-bottom: 12rpx;
+}
+
+.answer-label {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.answer-value {
+  font-size: 28rpx;
+  color: #52C41A;
+  font-weight: bold;
+}
+
+.answer-text {
+  font-size: 26rpx;
+  color: #333;
+  line-height: 1.6;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.auto-next-tip {
+  display: block;
+  margin-top: 20rpx;
+  color: #8C8C8C;
+  font-size: 24rpx;
+  text-align: center;
+}
+
+.quiz-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  padding: 20rpx 30rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: #fff;
+  box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.06);
+  gap: 20rpx;
+}
+
+.nav-btn {
+  flex: 1;
+  text-align: center;
+  padding: 24rpx 0;
+  border-radius: 44rpx;
+  font-size: 28rpx;
+  background: #f5f5f5;
+  color: #333;
+}
+
+.nav-btn.disabled {
+  opacity: 0.4;
+}
+
+.nav-btn.primary {
+  background: linear-gradient(135deg, #4A90D9, #6BA5E7);
+  color: #fff;
+}
+
+.nav-btn.success {
+  background: linear-gradient(135deg, #52C41A, #73D13D);
+  color: #fff;
+}
+
+.question-map-mask {
+  position: fixed;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+}
+
+.question-map-panel {
+  width: 100%;
+  max-height: 72vh;
+  box-sizing: border-box;
+  padding: 30rpx;
+  background: #fff;
+  border-radius: 28rpx 28rpx 0 0;
+}
+
+.question-map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 26rpx;
+}
+
+.question-map-title {
+  color: #222;
+  font-size: 34rpx;
+  font-weight: bold;
+}
+
+.question-map-count {
+  color: #999;
+  font-size: 24rpx;
+}
+
+.question-map-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18rpx;
+  max-height: 48vh;
+  overflow-y: auto;
+}
+
+.question-map-item {
+  width: 78rpx;
+  height: 78rpx;
+  line-height: 78rpx;
+  border-radius: 50%;
+  text-align: center;
+  color: #666;
+  background: #F5F5F5;
+  font-size: 26rpx;
+}
+
+.question-map-item.answered {
+  color: #237804;
+  background: #F6FFED;
+}
+
+.question-map-item.correct {
+  color: #237804;
+  background: #B7EB8F;
+}
+
+.question-map-item.wrong {
+  color: #A8071A;
+  background: #FFF1F0;
+}
+
+.question-map-item.current {
+  border: 4rpx solid #4A90D9;
+  line-height: 70rpx;
+  box-sizing: border-box;
+}
+
+.question-map-legend {
+  display: flex;
+  gap: 26rpx;
+  margin: 24rpx 0;
+  color: #888;
+  font-size: 22rpx;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 14rpx;
+  height: 14rpx;
+  margin-right: 6rpx;
+  border-radius: 50%;
+  background: #F5F5F5;
+}
+
+.current-dot { background: #4A90D9; }
+.answered-dot { background: #B7EB8F; }
+.wrong-dot { background: #FFA39E; }
+
+.map-finish-btn {
+  height: 78rpx;
+  line-height: 78rpx;
+  color: #fff;
+  background: linear-gradient(135deg, #4A90D9, #6BA5E7);
+  border-radius: 42rpx;
+  text-align: center;
+  font-size: 28rpx;
+}

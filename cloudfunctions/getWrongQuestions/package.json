@@ -1,0 +1,9 @@
+{
+  "name": "getWrongQuestions",
+  "version": "1.0.0",
+  "description": "获取错题集全部题目",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "latest"
+  }
+}

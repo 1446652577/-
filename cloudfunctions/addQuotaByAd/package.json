@@ -1,0 +1,9 @@
+{
+  "name": "addQuotaByAd",
+  "version": "1.0.0",
+  "description": "广告获取额度",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "latest"
+  }
+}

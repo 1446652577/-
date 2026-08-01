@@ -1,0 +1,197 @@
+<view class="container">
+  <!-- 错误提示 -->
+  <view class="error-bar" wx:if="{{errorMsg}}">
+    <text>⚠️ {{errorMsg}}</text>
+  </view>
+
+  <!-- 扫描版提示 -->
+  <view class="scan-tip-card" wx:if="{{isScanFile}}">
+    <text class="scan-title">📄 检测到扫描版文件</text>
+    <text class="scan-desc">该文件是图片格式，无法直接提取文字</text>
+    <text class="scan-desc">请用下方「📷 截图上传」功能，逐页截图后上传</text>
+    <text class="scan-desc">一次最多可选9张，识别更精准</text>
+  </view>
+
+  <!-- 上传建议 -->
+  <view class="card tip-card">
+    <text class="tip-title">📌 上传说明</text>
+    <view class="tip-item">
+      <text class="tip-icon">✅</text>
+      <text class="tip-text">PDF/Word/TXT：直接选「上传文档」</text>
+    </view>
+    <view class="tip-item">
+      <text class="tip-icon">📷</text>
+      <text class="tip-text">PPT/扫描版PDF：打开文件→截图→选「截图上传」</text>
+    </view>
+    <view class="tip-item">
+      <text class="tip-icon">⚡</text>
+      <text class="tip-text">截图上传识别最精准，推荐优先使用</text>
+    </view>
+  </view>
+
+  <!-- 两个上传按钮 -->
+  <view class="upload-buttons">
+    <view class="upload-btn-item" bindtap="chooseFile">
+      <view class="upload-btn-icon">📁</view>
+      <text class="upload-btn-title">上传文档</text>
+      <text class="upload-btn-desc">PDF / Word / Excel / TXT</text>
+    </view>
+    <view class="upload-btn-item primary" bindtap="chooseImages">
+      <view class="upload-btn-icon">📷</view>
+      <text class="upload-btn-title">截图上传</text>
+      <text class="upload-btn-desc">PPT截图 / 拍照</text>
+    </view>
+  </view>
+
+  <!-- 已选文件信息 -->
+  <view class="card parse-card" wx:if="{{fileName && imageList.length === 0}}">
+    <view class="file-info">
+      <text class="file-icon">📄</text>
+      <view class="file-detail">
+        <text class="file-name">{{fileName}}</text>
+        <text class="file-size">{{fileSize}}</text>
+      </view>
+    </view>
+    <view class="parse-options">
+      <view class="option-item">
+        <text class="option-label">题目数量</text>
+        <picker mode="selector" range="{{questionCounts}}" value="{{questionCountIndex}}" bindchange="onCountChange">
+          <view class="option-value">{{questionCounts[questionCountIndex]}}</view>
+        </picker>
+      </view>
+      <view class="option-item">
+        <text class="option-label">学科</text>
+        <picker mode="selector" range="{{subjectOptions}}" value="{{subjectIndex}}" bindchange="onSubjectChange">
+          <view class="option-value">{{subjectOptions[subjectIndex]}}</view>
+        </picker>
+      </view>
+      <view class="option-item">
+        <text class="option-label">难度</text>
+        <picker mode="selector" range="{{difficultyOptions}}" value="{{difficultyIndex}}" bindchange="onDifficultyChange">
+          <view class="option-value">{{difficultyOptions[difficultyIndex]}}</view>
+        </picker>
+      </view>
+      <view class="option-item">
+        <text class="option-label">题型</text>
+        <picker mode="selector" range="{{questionTypeOptions}}" value="{{questionTypeIndex}}" bindchange="onQuestionTypeChange">
+          <view class="option-value">{{questionTypeOptions[questionTypeIndex]}}</view>
+        </picker>
+      </view>
+    </view>
+    <button class="btn-primary" bindtap="startParse" disabled="{{parsing}}">
+      {{parsing ? '识别中...' : '开始识别（消耗1次）'}}
+    </button>
+    <view class="quota-hint">
+      <text>剩余次数：{{quota}} 次</text>
+    </view>
+  </view>
+
+  <!-- 已选图片列表 -->
+  <view class="card image-list-card" wx:if="{{imageList.length > 0}}">
+    <view class="image-list-header">
+      <text class="title">已选 {{imageList.length}} 张截图</text>
+    </view>
+    <view class="image-grid">
+      <view class="image-item" wx:for="{{imageList}}" wx:key="index">
+        <image src="{{item.path}}" mode="aspectFill" class="image-thumb"/>
+        <view class="image-remove" bindtap="removeImage" data-index="{{index}}">✕</view>
+      </view>
+    </view>
+    <view class="parse-options">
+      <view class="option-item">
+        <text class="option-label">题目数量</text>
+        <picker mode="selector" range="{{questionCounts}}" value="{{questionCountIndex}}" bindchange="onCountChange">
+          <view class="option-value">{{questionCounts[questionCountIndex]}}</view>
+        </picker>
+      </view>
+      <view class="option-item">
+        <text class="option-label">学科</text>
+        <picker mode="selector" range="{{subjectOptions}}" value="{{subjectIndex}}" bindchange="onSubjectChange">
+          <view class="option-value">{{subjectOptions[subjectIndex]}}</view>
+        </picker>
+      </view>
+      <view class="option-item">
+        <text class="option-label">难度</text>
+        <picker mode="selector" range="{{difficultyOptions}}" value="{{difficultyIndex}}" bindchange="onDifficultyChange">
+          <view class="option-value">{{difficultyOptions[difficultyIndex]}}</view>
+        </picker>
+      </view>
+      <view class="option-item">
+        <text class="option-label">题型</text>
+        <picker mode="selector" range="{{questionTypeOptions}}" value="{{questionTypeIndex}}" bindchange="onQuestionTypeChange">
+          <view class="option-value">{{questionTypeOptions[questionTypeIndex]}}</view>
+        </picker>
+      </view>
+    </view>
+    <button class="btn-success" bindtap="startParse" disabled="{{parsing}}">
+      {{parsing ? '识别中...' : '开始识别截图（消耗1次）'}}
+    </button>
+    <view class="quota-hint">
+      <text>剩余次数：{{quota}} 次</text>
+    </view>
+  </view>
+
+  <!-- 进度条 -->
+  <view class="card progress-card" wx:if="{{parsing}}">
+    <view class="progress-info">
+      <text class="progress-text">{{progressText}}</text>
+      <text class="progress-percent">{{progress}}%</text>
+    </view>
+    <view class="progress-bar">
+      <view class="progress-fill" style="width: {{progress}}%"></view>
+    </view>
+  </view>
+
+    <!-- 识别结果预览 -->
+  <view class="card preview-card" wx:if="{{previewQuestions.length > 0}}">
+    <view class="preview-header">
+      <text class="title">识别结果预览</text>
+      <text class="preview-count">共 {{parsedData.questionCount}} 题</text>
+    </view>
+    <view class="quality-summary" wx:if="{{parsedData.qualitySummary}}">
+      <text class="quality-summary-title">生成质量检查</text>
+      <text class="quality-ready">可直接使用 {{parsedData.qualitySummary.ready}} 题</text>
+      <text class="quality-warning" wx:if="{{parsedData.qualitySummary.warning > 0}}">建议检查 {{parsedData.qualitySummary.warning}} 题</text>
+    </view>
+    
+    <!-- AI答题状态 -->
+    <view class="ai-status-bar" wx:if="{{parsedData.aiDetail && parsedData.aiDetail.total > 0}}">
+      <text wx:if="{{parsedData.aiDetail.answered > 0}}" class="ai-success">🤖 AI已自动判断 {{parsedData.aiDetail.answered}}/{{parsedData.aiDetail.total}} 题答案</text>
+      <text wx:elif="{{parsedData.aiDetail.error}}" class="ai-error">⚠️ AI判断失败：{{parsedData.aiDetail.error}}</text>
+      <text wx:else class="ai-warn">🤖 AI未返回有效答案</text>
+    </view>
+    
+    <view class="preview-list">
+      <view class="preview-item" wx:for="{{previewQuestions}}" wx:key="index">
+        <view class="preview-question-row">
+          <text class="preview-idx">{{index+1}}</text>
+          <view class="preview-q-wrap">
+            <text class="preview-q">{{item.question}}</text>
+            <text class="preview-edit" bindtap="editQuestion" data-index="{{item.qualityIndex}}">校对题干</text>
+          </view>
+        </view>
+        <view class="preview-options" wx:if="{{item.options && item.options.length}}">
+          <view class="preview-option" wx:for="{{item.options}}" wx:for-item="option" wx:for-index="optionIndex" wx:key="key">
+            <text class="preview-option-key">{{option.key}}</text>
+            <text class="preview-option-text" bindtap="editOption" data-index="{{item.qualityIndex}}" data-option-index="{{optionIndex}}">{{option.text}}</text>
+          </view>
+        </view>
+        <view class="preview-answer">
+          <text class="preview-answer-label">参考答案</text>
+          <text class="preview-answer-value" bindtap="editAnswer" data-index="{{item.qualityIndex}}">{{item.answer || '点击选择答案'}}</text>
+        </view>
+        <view class="preview-explanation" wx:if="{{item.explanation}}">
+          <text class="preview-explanation-label">解析</text>
+          <text class="preview-explanation-text">{{item.explanation}}</text>
+        </view>
+        <view class="preview-quality-warning" wx:if="{{item.qualityIssue}}">
+          <text>⚠️ {{item.qualityIssue}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="preview-more" wx:if="{{parsedData.questionCount > 3}}" bindtap="togglePreview">
+      <text>{{previewExpanded ? '收起预览' : '展开全部题目并校对'}}（共 {{parsedData.questionCount}} 题）</text>
+    </view>
+    <button class="btn-success" bindtap="saveQuiz">一键生成题库</button>
+  </view>
+</view>

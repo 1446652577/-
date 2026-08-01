@@ -1,0 +1,14 @@
+{
+  "name": "parseDocument",
+  "version": "1.0.0",
+  "description": "解析文档OCR识别题目",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "latest",
+    "axios": "latest",
+    "adm-zip": "latest",
+    "mammoth": "latest",
+    "pdf-parse": "latest",
+    "cos-nodejs-sdk-v5": "latest"
+  }
+}

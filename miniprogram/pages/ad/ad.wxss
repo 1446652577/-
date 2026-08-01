@@ -1,0 +1,43 @@
+.notice-box {
+  background: #FFF7E6;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.notice-text {
+  display: block;
+  font-size: 24rpx;
+  color: #FAAD14;
+  line-height: 1.6;
+}
+
+.help-card {
+  text-align: left;
+}
+
+.help-step {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 20rpx;
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  background: #4A90D9;
+  color: #fff;
+  font-size: 24rpx;
+  border-radius: 50%;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.step-text {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.5;
+}

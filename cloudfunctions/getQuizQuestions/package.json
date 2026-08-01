@@ -1,0 +1,9 @@
+{
+  "name": "getQuizQuestions",
+  "version": "1.0.0",
+  "description": "获取试卷全部题目",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "latest"
+  }
+}

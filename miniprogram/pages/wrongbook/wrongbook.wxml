@@ -1,0 +1,64 @@
+<view class="container">
+  <view class="stats-card" wx:if="{{wrongQuestions.length > 0}}">
+    <view class="stat-box">
+      <text class="stat-num">{{wrongQuestions.length}}</text>
+      <text class="stat-label">错题总数</text>
+    </view>
+    <view class="stat-box">
+      <text class="stat-num">{{reviewedCount}}</text>
+      <text class="stat-label">已复习</text>
+    </view>
+    <view class="stat-box">
+      <text class="stat-num">{{masteredCount}}</text>
+      <text class="stat-label">已掌握</text>
+    </view>
+  </view>
+
+  <view class="review-entry" wx:if="{{reviewableCount > 0}}">
+    <view>
+      <text class="review-entry-title">今天复习错题</text>
+      <text class="review-entry-desc">优先复习未掌握题目，最多进入20题</text>
+    </view>
+    <view class="review-entry-btn" bindtap="startWrongPractice">开始复习</view>
+  </view>
+
+  <view class="wrong-list" wx:if="{{wrongQuestions.length > 0}}">
+    <view class="wrong-item" wx:for="{{wrongQuestions}}" wx:key="_id">
+      <view class="wrong-header">
+        <text class="wrong-source">{{item.quizTitle || '未知题库'}}</text>
+        <text class="wrong-count">错 {{item.wrongCount || 1}} 次</text>
+      </view>
+      <view class="wrong-question">{{item.question}}</view>
+      <view class="wrong-options">
+        <view class="opt-item" wx:for="{{item.options}}" wx:for-item="opt" wx:key="key">
+          <text class="opt-key {{opt.key === item.answer ? 'correct-key' : ''}}">{{opt.key}}.</text>
+          <text class="opt-text">{{opt.text}}</text>
+        </view>
+      </view>
+      <view class="wrong-answer">
+        <text class="answer-label">正确答案：</text>
+        <text class="answer-value">{{item.answer}}</text>
+      </view>
+      <view class="wrong-explain" wx:if="{{item.explanation}}">
+        <text>💡 {{item.explanation}}</text>
+      </view>
+      <view class="wrong-actions">
+        <view class="action-tag {{item.reviewed ? 'done' : ''}}" bindtap="markReviewed" data-id="{{item._id}}">
+          {{item.reviewed ? '✓ 已复习' : '标记已复习'}}
+        </view>
+        <view class="action-tag {{item.mastered ? 'done' : ''}}" bindtap="markMastered" data-id="{{item._id}}">
+          {{item.mastered ? '✓ 已掌握' : '标记已掌握'}}
+        </view>
+        <view class="action-tag delete" bindtap="removeWrong" data-id="{{item._id}}">
+          移除
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-tip" wx:else>
+    <text>暂无错题</text>
+    <text>快去练习吧，错题会自动收录到这里</text>
+    <button class="btn-primary" bindtap="goPractice" style="margin-top:30rpx">去练习</button>
+  </view>
+</view>
